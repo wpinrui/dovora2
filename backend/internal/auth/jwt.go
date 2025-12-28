@@ -60,3 +60,26 @@ func generateToken(userID, secret string, tokenType TokenType, duration time.Dur
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
 }
+
+func ValidateToken(tokenString, secret string, expectedType TokenType) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("parse token: %w", err)
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	if claims.TokenType != expectedType {
+		return nil, fmt.Errorf("invalid token type: expected %s, got %s", expectedType, claims.TokenType)
+	}
+
+	return claims, nil
+}

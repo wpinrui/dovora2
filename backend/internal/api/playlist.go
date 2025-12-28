@@ -138,11 +138,6 @@ func (h *PlaylistHandler) create(w http.ResponseWriter, r *http.Request) {
 
 // Get returns a single playlist with its tracks
 func (h *PlaylistHandler) Get(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID, ok := GetUserID(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "user not found in context")
@@ -200,11 +195,6 @@ func (h *PlaylistHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update updates a playlist's name
 func (h *PlaylistHandler) Update(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID, ok := GetUserID(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "user not found in context")
@@ -253,11 +243,6 @@ func (h *PlaylistHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete deletes a playlist
 func (h *PlaylistHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID, ok := GetUserID(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "user not found in context")
@@ -287,11 +272,6 @@ func (h *PlaylistHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // AddTrack adds a track to a playlist
 func (h *PlaylistHandler) AddTrack(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID, ok := GetUserID(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "user not found in context")
@@ -354,11 +334,6 @@ func (h *PlaylistHandler) AddTrack(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTrack removes a track from a playlist
 func (h *PlaylistHandler) RemoveTrack(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID, ok := GetUserID(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "user not found in context")
@@ -403,11 +378,6 @@ func (h *PlaylistHandler) RemoveTrack(w http.ResponseWriter, r *http.Request) {
 
 // ReorderTracks updates the order of tracks in a playlist
 func (h *PlaylistHandler) ReorderTracks(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID, ok := GetUserID(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "user not found in context")

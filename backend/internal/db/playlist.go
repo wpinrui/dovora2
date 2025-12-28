@@ -14,15 +14,6 @@ type Playlist struct {
 	UpdatedAt time.Time
 }
 
-// PlaylistTrack represents a track in a playlist with its position
-type PlaylistTrack struct {
-	ID         string
-	PlaylistID string
-	TrackID    string
-	Position   int
-	CreatedAt  time.Time
-}
-
 // PlaylistWithTracks represents a playlist with its tracks
 type PlaylistWithTracks struct {
 	Playlist

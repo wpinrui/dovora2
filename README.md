@@ -268,7 +268,7 @@ go run cmd/server/main.go
 16. [x] Lyrics endpoint (`GET /lyrics`, Genius API integration)
 17. [x] Playlist CRUD endpoints
 18. [x] Dockerfile + docker-compose setup
-19. [ ] Rate limiting middleware
+19. [x] Rate limiting middleware
 20. [ ] Admin endpoints (manage users, invites)
 
 ### Android Phase 1: Foundation

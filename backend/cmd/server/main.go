@@ -84,22 +84,27 @@ func main() {
 	playlistHandler := api.NewPlaylistHandler(database)
 	middleware := api.NewMiddleware(jwtSecret)
 
+	// Rate limiters: (requests per second, burst)
+	authLimiter := api.NewRateLimiter(0.17, 5)     // ~10 req/min, burst of 5
+	downloadLimiter := api.NewRateLimiter(0.08, 3) // ~5 req/min, burst of 3
+	apiLimiter := api.NewRateLimiter(1.0, 10)      // 60 req/min, burst of 10
+
 	http.HandleFunc("/health", healthHandler(database))
-	http.HandleFunc("/auth/register", authHandler.Register)
-	http.HandleFunc("/auth/login", authHandler.Login)
-	http.HandleFunc("/auth/refresh", authHandler.Refresh)
-	http.HandleFunc("/invites", middleware.RequireAuth(inviteHandler.Create))
-	http.HandleFunc("/invites/list", middleware.RequireAuth(inviteHandler.List))
-	http.HandleFunc("/search", middleware.RequireAuth(searchHandler.Search))
-	http.HandleFunc("/download", middleware.RequireAuth(downloadHandler.Download))
-	http.HandleFunc("/lyrics", middleware.RequireAuth(lyricsHandler.GetLyrics))
-	http.HandleFunc("/files/", middleware.RequireAuth(fileHandler.ServeFile))
-	http.HandleFunc("/library/music", middleware.RequireAuth(libraryHandler.GetMusic))
-	http.HandleFunc("/library/videos", middleware.RequireAuth(libraryHandler.GetVideos))
-	http.HandleFunc("/library/", middleware.RequireAuth(libraryHandler.DeleteItem))
-	http.HandleFunc("/tracks/", middleware.RequireAuth(libraryHandler.UpdateTrack))
-	http.HandleFunc("/playlists", middleware.RequireAuth(playlistHandler.HandlePlaylists))
-	http.HandleFunc("/playlists/", middleware.RequireAuth(playlistHandler.HandlePlaylist))
+	http.HandleFunc("/auth/register", authLimiter.RateLimit(authHandler.Register))
+	http.HandleFunc("/auth/login", authLimiter.RateLimit(authHandler.Login))
+	http.HandleFunc("/auth/refresh", authLimiter.RateLimit(authHandler.Refresh))
+	http.HandleFunc("/invites", apiLimiter.RateLimit(middleware.RequireAuth(inviteHandler.Create)))
+	http.HandleFunc("/invites/list", apiLimiter.RateLimit(middleware.RequireAuth(inviteHandler.List)))
+	http.HandleFunc("/search", apiLimiter.RateLimit(middleware.RequireAuth(searchHandler.Search)))
+	http.HandleFunc("/download", middleware.RequireAuth(downloadLimiter.RateLimitByUser(downloadHandler.Download)))
+	http.HandleFunc("/lyrics", apiLimiter.RateLimit(middleware.RequireAuth(lyricsHandler.GetLyrics)))
+	http.HandleFunc("/files/", apiLimiter.RateLimit(middleware.RequireAuth(fileHandler.ServeFile)))
+	http.HandleFunc("/library/music", apiLimiter.RateLimit(middleware.RequireAuth(libraryHandler.GetMusic)))
+	http.HandleFunc("/library/videos", apiLimiter.RateLimit(middleware.RequireAuth(libraryHandler.GetVideos)))
+	http.HandleFunc("/library/", apiLimiter.RateLimit(middleware.RequireAuth(libraryHandler.DeleteItem)))
+	http.HandleFunc("/tracks/", apiLimiter.RateLimit(middleware.RequireAuth(libraryHandler.UpdateTrack)))
+	http.HandleFunc("/playlists", apiLimiter.RateLimit(middleware.RequireAuth(playlistHandler.HandlePlaylists)))
+	http.HandleFunc("/playlists/", apiLimiter.RateLimit(middleware.RequireAuth(playlistHandler.HandlePlaylist)))
 
 	server := &http.Server{
 		Addr:         ":" + port,

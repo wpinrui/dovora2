@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/wpinrui/dovora2/backend/internal/invidious"
@@ -50,6 +51,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	// Invidious uses "video" for both music and video searches
 	results, err := h.invidiousClient.Search(r.Context(), query, "video")
 	if err != nil {
+		log.Printf("Invidious search failed: %v", err)
 		writeError(w, http.StatusBadGateway, "search service unavailable")
 		return
 	}
@@ -58,11 +60,11 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		Results: make([]searchResultResponse, 0, len(results)),
 	}
 
-	for _, r := range results {
+	for _, result := range results {
 		thumbnail := ""
-		if len(r.VideoThumbnails) > 0 {
+		if len(result.VideoThumbnails) > 0 {
 			// Prefer medium quality thumbnail
-			for _, t := range r.VideoThumbnails {
+			for _, t := range result.VideoThumbnails {
 				if t.Quality == "medium" {
 					thumbnail = t.URL
 					break
@@ -70,18 +72,18 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 			}
 			// Fallback to first available
 			if thumbnail == "" {
-				thumbnail = r.VideoThumbnails[0].URL
+				thumbnail = result.VideoThumbnails[0].URL
 			}
 		}
 
 		response.Results = append(response.Results, searchResultResponse{
-			VideoID:       r.VideoID,
-			Title:         r.Title,
-			Author:        r.Author,
-			Duration:      r.LengthSeconds,
+			VideoID:       result.VideoID,
+			Title:         result.Title,
+			Author:        result.Author,
+			Duration:      result.LengthSeconds,
 			ThumbnailURL:  thumbnail,
-			ViewCount:     r.ViewCount,
-			PublishedText: r.PublishedText,
+			ViewCount:     result.ViewCount,
+			PublishedText: result.PublishedText,
 		})
 	}
 

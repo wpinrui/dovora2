@@ -13,6 +13,7 @@ import (
 	"github.com/wpinrui/dovora2/backend/internal/api"
 	"github.com/wpinrui/dovora2/backend/internal/db"
 	"github.com/wpinrui/dovora2/backend/internal/invidious"
+	"github.com/wpinrui/dovora2/backend/internal/ytdlp"
 )
 
 func main() {
@@ -55,9 +56,21 @@ func main() {
 
 	invidiousClient := invidious.NewClient(invidiousURL)
 
+	// Initialize yt-dlp downloader
+	downloadsDir := os.Getenv("DOWNLOADS_DIR")
+	if downloadsDir == "" {
+		downloadsDir = "./downloads"
+	}
+	downloader, err := ytdlp.New(downloadsDir)
+	if err != nil {
+		log.Fatalf("Failed to initialize downloader: %v", err)
+	}
+	log.Printf("Downloads directory: %s", downloadsDir)
+
 	authHandler := api.NewAuthHandler(database, jwtSecret)
 	inviteHandler := api.NewInviteHandler(database)
 	searchHandler := api.NewSearchHandler(invidiousClient)
+	downloadHandler := api.NewDownloadHandler(database, downloader)
 	middleware := api.NewMiddleware(jwtSecret)
 
 	http.HandleFunc("/health", healthHandler(database))
@@ -67,6 +80,7 @@ func main() {
 	http.HandleFunc("/invites", middleware.RequireAuth(inviteHandler.Create))
 	http.HandleFunc("/invites/list", middleware.RequireAuth(inviteHandler.List))
 	http.HandleFunc("/search", middleware.RequireAuth(searchHandler.Search))
+	http.HandleFunc("/download", middleware.RequireAuth(downloadHandler.Download))
 
 	server := &http.Server{
 		Addr:         ":" + port,

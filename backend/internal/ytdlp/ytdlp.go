@@ -103,6 +103,9 @@ func New(outputDir string, opts ...Option) (*Downloader, error) {
 
 // GetMetadata fetches metadata for a video without downloading it
 func (d *Downloader) GetMetadata(ctx context.Context, videoID string) (*Metadata, error) {
+	if videoID == "" {
+		return nil, errors.New("videoID is required")
+	}
 	url := videoURL(videoID)
 
 	output, err := d.runYtdlp(ctx, "--quiet", "--dump-json", "--no-download", url)
@@ -153,6 +156,9 @@ func (d *Downloader) DownloadVideo(ctx context.Context, videoID string) (*Downlo
 }
 
 func (d *Downloader) download(ctx context.Context, videoID string, mediaType MediaType) (*DownloadResult, error) {
+	if videoID == "" {
+		return nil, errors.New("videoID is required")
+	}
 	url := videoURL(videoID)
 
 	// Create subdirectory based on media type

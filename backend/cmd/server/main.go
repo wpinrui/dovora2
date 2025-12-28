@@ -48,11 +48,15 @@ func main() {
 	log.Println("Migrations complete")
 
 	authHandler := api.NewAuthHandler(database, jwtSecret)
+	inviteHandler := api.NewInviteHandler(database)
+	middleware := api.NewMiddleware(jwtSecret)
 
 	http.HandleFunc("/health", healthHandler(database))
 	http.HandleFunc("/auth/register", authHandler.Register)
 	http.HandleFunc("/auth/login", authHandler.Login)
 	http.HandleFunc("/auth/refresh", authHandler.Refresh)
+	http.HandleFunc("/invites", middleware.RequireAuth(inviteHandler.Create))
+	http.HandleFunc("/invites/list", middleware.RequireAuth(inviteHandler.List))
 
 	server := &http.Server{
 		Addr:         ":" + port,

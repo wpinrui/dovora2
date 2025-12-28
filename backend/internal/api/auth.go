@@ -22,8 +22,9 @@ func NewAuthHandler(database *db.DB, jwtSecret string) *AuthHandler {
 }
 
 type registerRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	InviteCode string `json:"invite_code"`
 }
 
 type registerResponse struct {
@@ -71,6 +72,27 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.InviteCode == "" {
+		writeError(w, http.StatusBadRequest, "invite_code is required")
+		return
+	}
+
+	invite, err := h.db.ValidateInvite(r.Context(), req.InviteCode)
+	if err != nil {
+		switch err {
+		case db.ErrInviteNotFound:
+			writeError(w, http.StatusBadRequest, "invalid invite code")
+		case db.ErrInviteUsed:
+			writeError(w, http.StatusBadRequest, "invite code already used")
+		case db.ErrInviteExpired:
+			writeError(w, http.StatusBadRequest, "invite code expired")
+		default:
+			log.Printf("Failed to validate invite: %v", err)
+			writeError(w, http.StatusInternalServerError, "internal server error")
+		}
+		return
+	}
+
 	passwordHash, err := auth.HashPassword(req.Password)
 	if err != nil {
 		log.Printf("Failed to hash password: %v", err)
@@ -87,6 +109,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to create user: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
+	}
+
+	if err := h.db.MarkInviteUsed(r.Context(), invite.ID, user.ID); err != nil {
+		log.Printf("Failed to mark invite as used: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

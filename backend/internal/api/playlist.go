@@ -170,11 +170,6 @@ func (h *PlaylistHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove any trailing path segments (for /tracks endpoints)
-	if idx := strings.Index(id, "/"); idx != -1 {
-		id = id[:idx]
-	}
-
 	playlist, err := h.db.GetPlaylistWithTracks(r.Context(), id, userID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

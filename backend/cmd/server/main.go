@@ -12,6 +12,7 @@ import (
 
 	"github.com/wpinrui/dovora2/backend/internal/api"
 	"github.com/wpinrui/dovora2/backend/internal/db"
+	"github.com/wpinrui/dovora2/backend/internal/invidious"
 )
 
 func main() {
@@ -28,6 +29,11 @@ func main() {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable is required")
+	}
+
+	invidiousURL := os.Getenv("INVIDIOUS_URL")
+	if invidiousURL == "" {
+		invidiousURL = "https://inv.perditum.com"
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -47,8 +53,11 @@ func main() {
 	}
 	log.Println("Migrations complete")
 
+	invidiousClient := invidious.NewClient(invidiousURL)
+
 	authHandler := api.NewAuthHandler(database, jwtSecret)
 	inviteHandler := api.NewInviteHandler(database)
+	searchHandler := api.NewSearchHandler(invidiousClient)
 	middleware := api.NewMiddleware(jwtSecret)
 
 	http.HandleFunc("/health", healthHandler(database))
@@ -57,6 +66,7 @@ func main() {
 	http.HandleFunc("/auth/refresh", authHandler.Refresh)
 	http.HandleFunc("/invites", middleware.RequireAuth(inviteHandler.Create))
 	http.HandleFunc("/invites/list", middleware.RequireAuth(inviteHandler.List))
+	http.HandleFunc("/search", middleware.RequireAuth(searchHandler.Search))
 
 	server := &http.Server{
 		Addr:         ":" + port,

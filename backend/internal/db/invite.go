@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 var (
@@ -55,59 +53,6 @@ func (db *DB) CreateInvite(ctx context.Context, createdBy *string, expiresAt *ti
 	}
 
 	return &invite, nil
-}
-
-func (db *DB) GetInviteByCode(ctx context.Context, code string) (*Invite, error) {
-	var invite Invite
-	err := db.Pool.QueryRow(ctx, `
-		SELECT id, code, created_by, used_by, created_at, used_at, expires_at
-		FROM invites WHERE code = $1
-	`, code).Scan(
-		&invite.ID, &invite.Code, &invite.CreatedBy, &invite.UsedBy,
-		&invite.CreatedAt, &invite.UsedAt, &invite.ExpiresAt,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrInviteNotFound
-		}
-		return nil, fmt.Errorf("get invite by code: %w", err)
-	}
-
-	return &invite, nil
-}
-
-func (db *DB) ValidateInvite(ctx context.Context, code string) (*Invite, error) {
-	invite, err := db.GetInviteByCode(ctx, code)
-	if err != nil {
-		return nil, err
-	}
-
-	if invite.UsedBy != nil {
-		return nil, ErrInviteUsed
-	}
-
-	if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
-		return nil, ErrInviteExpired
-	}
-
-	return invite, nil
-}
-
-func (db *DB) MarkInviteUsed(ctx context.Context, inviteID string, userID string) error {
-	result, err := db.Pool.Exec(ctx, `
-		UPDATE invites
-		SET used_by = $1, used_at = NOW()
-		WHERE id = $2 AND used_by IS NULL
-	`, userID, inviteID)
-	if err != nil {
-		return fmt.Errorf("mark invite used: %w", err)
-	}
-
-	if result.RowsAffected() == 0 {
-		return ErrInviteUsed
-	}
-
-	return nil
 }
 
 func (db *DB) ListInvitesByCreator(ctx context.Context, creatorID string) ([]Invite, error) {

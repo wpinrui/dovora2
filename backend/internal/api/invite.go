@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/wpinrui/dovora2/backend/internal/db"
 )
+
+const timeFormat = time.RFC3339
 
 type InviteHandler struct {
 	db *db.DB
@@ -81,10 +84,10 @@ func (h *InviteHandler) List(w http.ResponseWriter, r *http.Request) {
 			ID:        inv.ID,
 			Code:      inv.Code,
 			Used:      inv.UsedBy != nil,
-			CreatedAt: inv.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt: inv.CreatedAt.Format(timeFormat),
 		}
 		if inv.UsedAt != nil {
-			usedAt := inv.UsedAt.Format("2006-01-02T15:04:05Z07:00")
+			usedAt := inv.UsedAt.Format(timeFormat)
 			resp.UsedAt = &usedAt
 		}
 		response[i] = resp

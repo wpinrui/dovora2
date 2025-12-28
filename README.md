@@ -250,65 +250,65 @@ go run cmd/server/main.go
 
 ### Backend
 
-- [x] Project scaffolding (go mod, folder structure, main entrypoint)
-- [ ] Database connection (PostgreSQL, connection pooling, health check)
-- [ ] Database migrations (users, tracks, videos tables)
-- [ ] User registration endpoint (`POST /auth/register`)
-- [ ] User login endpoint (`POST /auth/login`, JWT generation)
-- [ ] JWT middleware (token validation, user context)
-- [ ] Token refresh endpoint (`POST /auth/refresh`)
-- [ ] Invite system (generate codes, validate on register)
-- [ ] Search endpoint (`GET /search`, Invidious API proxy)
-- [ ] yt-dlp integration (download audio/video, extract metadata)
-- [ ] Download endpoint (`POST /download`)
-- [ ] File serving endpoint (`GET /files/{id}`)
-- [ ] Music library endpoints (`GET /library/music`, `DELETE /library/{id}`)
-- [ ] Video library endpoints (`GET /library/videos`)
-- [ ] Track metadata update endpoint (rename title/artist)
-- [ ] Lyrics endpoint (`GET /lyrics`, Genius API integration)
-- [ ] Playlist CRUD endpoints
-- [ ] Dockerfile + docker-compose setup
-- [ ] Rate limiting middleware
-- [ ] Admin endpoints (manage users, invites)
+1. [x] Project scaffolding (go mod, folder structure, main entrypoint)
+2. [ ] Database connection (PostgreSQL, connection pooling, health check)
+3. [ ] Database migrations (users, tracks, videos tables)
+4. [ ] User registration endpoint (`POST /auth/register`)
+5. [ ] User login endpoint (`POST /auth/login`, JWT generation)
+6. [ ] JWT middleware (token validation, user context)
+7. [ ] Token refresh endpoint (`POST /auth/refresh`)
+8. [ ] Invite system (generate codes, validate on register)
+9. [ ] Search endpoint (`GET /search`, Invidious API proxy)
+10. [ ] yt-dlp integration (download audio/video, extract metadata)
+11. [ ] Download endpoint (`POST /download`)
+12. [ ] File serving endpoint (`GET /files/{id}`)
+13. [ ] Music library endpoints (`GET /library/music`, `DELETE /library/{id}`)
+14. [ ] Video library endpoints (`GET /library/videos`)
+15. [ ] Track metadata update endpoint (rename title/artist)
+16. [ ] Lyrics endpoint (`GET /lyrics`, Genius API integration)
+17. [ ] Playlist CRUD endpoints
+18. [ ] Dockerfile + docker-compose setup
+19. [ ] Rate limiting middleware
+20. [ ] Admin endpoints (manage users, invites)
 
 ### Android Phase 1: Foundation
 
-- [ ] Remove Firebase dependencies
-- [ ] API client setup (Retrofit, OkHttp with auth interceptor)
-- [ ] Token storage (encrypted SharedPreferences)
-- [ ] Login screen
-- [ ] Register screen (with invite code)
-- [ ] Auth state management (logged in/out, token refresh)
+21. [ ] Remove Firebase dependencies
+22. [ ] API client setup (Retrofit, OkHttp with auth interceptor)
+23. [ ] Token storage (encrypted SharedPreferences)
+24. [ ] Login screen
+25. [ ] Register screen (with invite code)
+26. [ ] Auth state management (logged in/out, token refresh)
 
 ### Android Phase 2: Music
 
-- [ ] Search screen (Invidious integration)
-- [ ] Download flow (request to backend, progress tracking)
-- [ ] Music library screen (list tracks from backend)
-- [ ] Track detail/edit screen (rename title/artist)
-- [ ] Music player service (background playback)
-- [ ] Now playing screen
-- [ ] Queue management UI
-- [ ] Playback controls (shuffle, repeat)
-- [ ] Notification controls
+27. [ ] Search screen (Invidious integration)
+28. [ ] Download flow (request to backend, progress tracking)
+29. [ ] Music library screen (list tracks from backend)
+30. [ ] Track detail/edit screen (rename title/artist)
+31. [ ] Music player service (background playback)
+32. [ ] Now playing screen
+33. [ ] Queue management UI
+34. [ ] Playback controls (shuffle, repeat)
+35. [ ] Notification controls
 
 ### Android Phase 3: Video
 
-- [ ] Video search integration
-- [ ] Video download flow (quality selection)
-- [ ] Video library screen
-- [ ] Video player screen
-- [ ] Floating miniplayer
-- [ ] Video playback controls (skip, fullscreen)
+36. [ ] Video search integration
+37. [ ] Video download flow (quality selection)
+38. [ ] Video library screen
+39. [ ] Video player screen
+40. [ ] Floating miniplayer
+41. [ ] Video playback controls (skip, fullscreen)
 
 ### Android Phase 4: Enhanced
 
-- [ ] Lyrics screen (fetch and display)
-- [ ] Playlist creation UI
-- [ ] Playlist management (add/remove tracks)
-- [ ] Playlist playback
-- [ ] Settings screen
-- [ ] Offline mode handling
+42. [ ] Lyrics screen (fetch and display)
+43. [ ] Playlist creation UI
+44. [ ] Playlist management (add/remove tracks)
+45. [ ] Playlist playback
+46. [ ] Settings screen
+47. [ ] Offline mode handling
 
 ## Legal Notice
 

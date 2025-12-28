@@ -123,31 +123,23 @@ func New(outputDir string, opts ...Option) (*Downloader, error) {
 	return d, nil
 }
 
-// GetMetadata fetches metadata for a video without downloading it
-func (d *Downloader) GetMetadata(ctx context.Context, videoID string) (*Metadata, error) {
-	if videoID == "" {
-		return nil, errors.New("videoID is required")
-	}
-	url := videoURL(videoID)
+// rawMetadata is the JSON structure returned by yt-dlp
+type rawMetadata struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Artist      string `json:"artist"`
+	Channel     string `json:"channel"`
+	Uploader    string `json:"uploader"`
+	Duration    int    `json:"duration"`
+	Thumbnail   string `json:"thumbnail"`
+	Description string `json:"description"`
+}
 
-	output, err := d.runYtdlp(ctx, "--quiet", "--dump-json", "--no-download", url)
-	if err != nil {
-		return nil, err
-	}
-
-	var raw struct {
-		ID          string `json:"id"`
-		Title       string `json:"title"`
-		Artist      string `json:"artist"`
-		Channel     string `json:"channel"`
-		Uploader    string `json:"uploader"`
-		Duration    int    `json:"duration"`
-		Thumbnail   string `json:"thumbnail"`
-		Description string `json:"description"`
-	}
-
-	if err := json.Unmarshal(output, &raw); err != nil {
-		return nil, fmt.Errorf("parsing metadata: %w", err)
+// parseMetadataJSON parses yt-dlp JSON output into Metadata
+func parseMetadataJSON(data []byte) (*Metadata, error) {
+	var raw rawMetadata
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("parsing metadata JSON: %w", err)
 	}
 
 	// Use uploader as fallback for channel
@@ -165,6 +157,31 @@ func (d *Downloader) GetMetadata(ctx context.Context, videoID string) (*Metadata
 		Thumbnail:   raw.Thumbnail,
 		Description: raw.Description,
 	}, nil
+}
+
+// GetMetadata fetches metadata for a video without downloading it
+func (d *Downloader) GetMetadata(ctx context.Context, videoID string) (*Metadata, error) {
+	if videoID == "" {
+		return nil, errors.New("videoID is required")
+	}
+	url := videoURL(videoID)
+
+	output, err := d.runYtdlp(ctx, "--quiet", "--dump-json", "--no-download", url)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseMetadataJSON(output)
+}
+
+// parseInfoJSON reads metadata from a .info.json file written by yt-dlp
+func parseInfoJSON(jsonPath string) (*Metadata, error) {
+	data, err := os.ReadFile(jsonPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading info.json: %w", err)
+	}
+
+	return parseMetadataJSON(data)
 }
 
 // DownloadAudio downloads audio in M4A format
@@ -204,6 +221,7 @@ func (d *Downloader) download(ctx context.Context, videoID string, mediaType Med
 			"--audio-quality", "0",
 			"-o", outputTemplate,
 			"--print", "after_move:filepath",
+			"--write-info-json",
 			"--no-playlist",
 			url,
 		}
@@ -215,6 +233,7 @@ func (d *Downloader) download(ctx context.Context, videoID string, mediaType Med
 			"--merge-output-format", "mp4",
 			"-o", outputTemplate,
 			"--print", "after_move:filepath",
+			"--write-info-json",
 			"--no-playlist",
 			url,
 		}
@@ -245,14 +264,18 @@ func (d *Downloader) download(ctx context.Context, videoID string, mediaType Med
 		return nil, fmt.Errorf("verifying downloaded file: %w", err)
 	}
 
-	// Fetch metadata
-	metadata, err := d.GetMetadata(ctx, videoID)
+	// Read metadata from info.json (written by --write-info-json flag)
+	infoJSONPath := filepath.Join(subDir, videoID+".info.json")
+	metadata, err := parseInfoJSON(infoJSONPath)
 	if err != nil {
 		// Non-fatal: return result with minimal metadata
 		metadata = &Metadata{
 			ID: videoID,
 		}
 	}
+
+	// Clean up info.json file
+	_ = os.Remove(infoJSONPath)
 
 	return &DownloadResult{
 		FilePath:  filePath,

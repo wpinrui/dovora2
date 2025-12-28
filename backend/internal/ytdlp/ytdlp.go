@@ -22,6 +22,27 @@ const (
 	dirPermission    = 0755
 )
 
+// CommandRunner executes commands and returns their output
+type CommandRunner interface {
+	Run(ctx context.Context, name string, args ...string) ([]byte, error)
+}
+
+// execRunner is the default CommandRunner using os/exec
+type execRunner struct{}
+
+func (r *execRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	output, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("command failed: %s", string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("executing command: %w", err)
+	}
+	return output, nil
+}
+
 // Metadata contains information about a video/audio
 type Metadata struct {
 	ID          string `json:"id"`
@@ -45,10 +66,18 @@ type Downloader struct {
 	outputDir  string
 	ytdlpPath  string
 	ffmpegPath string
+	runner     CommandRunner
 }
 
 // Option configures the Downloader
 type Option func(*Downloader)
+
+// WithCommandRunner sets a custom command runner (for testing)
+func WithCommandRunner(runner CommandRunner) Option {
+	return func(d *Downloader) {
+		d.runner = runner
+	}
+}
 
 // WithYtdlpPath sets a custom path to the yt-dlp executable
 func WithYtdlpPath(path string) Option {
@@ -71,16 +100,7 @@ func videoURL(videoID string) string {
 
 // runYtdlp executes yt-dlp with the given arguments and returns the output
 func (d *Downloader) runYtdlp(ctx context.Context, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, d.ytdlpPath, args...)
-	output, err := cmd.Output()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return nil, fmt.Errorf("yt-dlp failed: %s", string(exitErr.Stderr))
-		}
-		return nil, fmt.Errorf("executing yt-dlp: %w", err)
-	}
-	return output, nil
+	return d.runner.Run(ctx, d.ytdlpPath, args...)
 }
 
 // New creates a new Downloader
@@ -93,6 +113,7 @@ func New(outputDir string, opts ...Option) (*Downloader, error) {
 		outputDir:  outputDir,
 		ytdlpPath:  "yt-dlp",
 		ffmpegPath: "ffmpeg",
+		runner:     &execRunner{},
 	}
 
 	for _, opt := range opts {

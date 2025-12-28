@@ -71,6 +71,7 @@ func main() {
 	inviteHandler := api.NewInviteHandler(database)
 	searchHandler := api.NewSearchHandler(invidiousClient)
 	downloadHandler := api.NewDownloadHandler(database, downloader)
+	fileHandler := api.NewFileHandler(database)
 	middleware := api.NewMiddleware(jwtSecret)
 
 	http.HandleFunc("/health", healthHandler(database))
@@ -81,6 +82,7 @@ func main() {
 	http.HandleFunc("/invites/list", middleware.RequireAuth(inviteHandler.List))
 	http.HandleFunc("/search", middleware.RequireAuth(searchHandler.Search))
 	http.HandleFunc("/download", middleware.RequireAuth(downloadHandler.Download))
+	http.HandleFunc("/files/", middleware.RequireAuth(fileHandler.ServeFile))
 
 	server := &http.Server{
 		Addr:         ":" + port,

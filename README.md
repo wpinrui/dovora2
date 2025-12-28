@@ -261,7 +261,7 @@ go run cmd/server/main.go
 9. [x] Search endpoint (`GET /search`, Invidious API proxy)
 10. [x] yt-dlp integration (download audio/video, extract metadata)
 11. [x] Download endpoint (`POST /download`)
-12. [ ] File serving endpoint (`GET /files/{id}`)
+12. [x] File serving endpoint (`GET /files/{id}`)
 13. [ ] Music library endpoints (`GET /library/music`, `DELETE /library/{id}`)
 14. [ ] Video library endpoints (`GET /library/videos`)
 15. [ ] Track metadata update endpoint (rename title/artist)

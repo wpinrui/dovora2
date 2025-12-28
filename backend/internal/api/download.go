@@ -10,6 +10,8 @@ import (
 	"github.com/wpinrui/dovora2/backend/internal/ytdlp"
 )
 
+const defaultVideoQuality = "best"
+
 type DownloadHandler struct {
 	db         *db.DB
 	downloader *ytdlp.Downloader
@@ -134,7 +136,7 @@ func (h *DownloadHandler) Download(w http.ResponseWriter, r *http.Request) {
 			ThumbnailURL:    result.Metadata.Thumbnail,
 			FilePath:        result.FilePath,
 			FileSizeBytes:   fileSize,
-			Quality:         "best",
+			Quality:         defaultVideoQuality,
 		}
 
 		video, err = h.db.CreateVideo(r.Context(), video)

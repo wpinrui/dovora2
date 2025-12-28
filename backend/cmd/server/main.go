@@ -85,7 +85,7 @@ func main() {
 	server := &http.Server{
 		Addr:         ":" + port,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 10 * time.Minute, // Long timeout for downloads
 		IdleTimeout:  60 * time.Second,
 	}
 

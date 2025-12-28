@@ -13,6 +13,7 @@ import (
 	"github.com/wpinrui/dovora2/backend/internal/api"
 	"github.com/wpinrui/dovora2/backend/internal/db"
 	"github.com/wpinrui/dovora2/backend/internal/invidious"
+	"github.com/wpinrui/dovora2/backend/internal/lyrics"
 	"github.com/wpinrui/dovora2/backend/internal/ytdlp"
 )
 
@@ -37,6 +38,11 @@ func main() {
 		invidiousURL = "https://inv.perditum.com"
 	}
 
+	geniusAPIKey := os.Getenv("GENIUS_API_KEY")
+	if geniusAPIKey == "" {
+		log.Println("Warning: GENIUS_API_KEY not set, lyrics endpoint will not work")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -55,6 +61,7 @@ func main() {
 	log.Println("Migrations complete")
 
 	invidiousClient := invidious.NewClient(invidiousURL)
+	lyricsClient := lyrics.NewClient(geniusAPIKey)
 
 	// Initialize yt-dlp downloader
 	downloadsDir := os.Getenv("DOWNLOADS_DIR")
@@ -73,6 +80,7 @@ func main() {
 	downloadHandler := api.NewDownloadHandler(database, downloader)
 	fileHandler := api.NewFileHandler(database)
 	libraryHandler := api.NewLibraryHandler(database)
+	lyricsHandler := api.NewLyricsHandler(lyricsClient)
 	middleware := api.NewMiddleware(jwtSecret)
 
 	http.HandleFunc("/health", healthHandler(database))
@@ -83,6 +91,7 @@ func main() {
 	http.HandleFunc("/invites/list", middleware.RequireAuth(inviteHandler.List))
 	http.HandleFunc("/search", middleware.RequireAuth(searchHandler.Search))
 	http.HandleFunc("/download", middleware.RequireAuth(downloadHandler.Download))
+	http.HandleFunc("/lyrics", middleware.RequireAuth(lyricsHandler.GetLyrics))
 	http.HandleFunc("/files/", middleware.RequireAuth(fileHandler.ServeFile))
 	http.HandleFunc("/library/music", middleware.RequireAuth(libraryHandler.GetMusic))
 	http.HandleFunc("/library/videos", middleware.RequireAuth(libraryHandler.GetVideos))

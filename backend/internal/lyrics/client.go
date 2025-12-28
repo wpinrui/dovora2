@@ -14,6 +14,8 @@ import (
 	"golang.org/x/net/html"
 )
 
+var excessiveNewlinesRegex = regexp.MustCompile(`\n{3,}`)
+
 type Client struct {
 	apiKey     string
 	httpClient *http.Client
@@ -213,8 +215,7 @@ func extractLyrics(htmlContent string) (string, error) {
 
 func cleanLyrics(lyrics string) string {
 	// Remove excessive newlines
-	re := regexp.MustCompile(`\n{3,}`)
-	lyrics = re.ReplaceAllString(lyrics, "\n\n")
+	lyrics = excessiveNewlinesRegex.ReplaceAllString(lyrics, "\n\n")
 
 	// Trim whitespace
 	lyrics = strings.TrimSpace(lyrics)

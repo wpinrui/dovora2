@@ -16,6 +16,8 @@ type MediaType string
 const (
 	MediaTypeAudio MediaType = "audio"
 	MediaTypeVideo MediaType = "video"
+
+	youtubeURLFormat = "https://www.youtube.com/watch?v=%s"
 )
 
 // Metadata contains information about a video/audio
@@ -81,7 +83,7 @@ func New(outputDir string, opts ...Option) (*Downloader, error) {
 
 // GetMetadata fetches metadata for a video without downloading it
 func (d *Downloader) GetMetadata(ctx context.Context, videoID string) (*Metadata, error) {
-	url := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
+	url := fmt.Sprintf(youtubeURLFormat, videoID)
 
 	args := []string{
 		"--dump-json",
@@ -141,7 +143,7 @@ func (d *Downloader) DownloadVideo(ctx context.Context, videoID string) (*Downlo
 }
 
 func (d *Downloader) download(ctx context.Context, videoID string, mediaType MediaType) (*DownloadResult, error) {
-	url := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
+	url := fmt.Sprintf(youtubeURLFormat, videoID)
 
 	// Create subdirectory based on media type
 	subDir := filepath.Join(d.outputDir, string(mediaType))
@@ -158,17 +160,19 @@ func (d *Downloader) download(ctx context.Context, videoID string, mediaType Med
 	switch mediaType {
 	case MediaTypeAudio:
 		args = []string{
-			"-x",                       // Extract audio
-			"--audio-format", "m4a",    // Convert to M4A
-			"--audio-quality", "0",     // Best quality
+			"--quiet",
+			"-x",
+			"--audio-format", "m4a",
+			"--audio-quality", "0",
 			"-o", outputTemplate,
-			"--print", "after_move:filepath", // Print final path
+			"--print", "after_move:filepath",
 			"--no-playlist",
 			url,
 		}
 		expectedExt = "m4a"
 	case MediaTypeVideo:
 		args = []string{
+			"--quiet",
 			"-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
 			"--merge-output-format", "mp4",
 			"-o", outputTemplate,

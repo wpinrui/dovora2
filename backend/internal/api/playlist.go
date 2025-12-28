@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -10,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/wpinrui/dovora2/backend/internal/db"
 )
+
+const timeFormatISO8601 = "2006-01-02T15:04:05Z"
 
 type PlaylistHandler struct {
 	db *db.DB
@@ -54,6 +57,22 @@ type reorderTracksRequest struct {
 	TrackIDs []string `json:"track_ids"`
 }
 
+// verifyPlaylistOwnership checks that a playlist exists and belongs to the user.
+// Returns the playlist if found, or writes an error response and returns nil.
+func (h *PlaylistHandler) verifyPlaylistOwnership(ctx context.Context, w http.ResponseWriter, playlistID, userID string) *db.Playlist {
+	playlist, err := h.db.GetPlaylistByID(ctx, playlistID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "playlist not found")
+			return nil
+		}
+		log.Printf("Failed to get playlist: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to verify playlist")
+		return nil
+	}
+	return playlist
+}
+
 // HandlePlaylists routes requests to /playlists (list and create)
 func (h *PlaylistHandler) HandlePlaylists(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -89,8 +108,8 @@ func (h *PlaylistHandler) list(w http.ResponseWriter, r *http.Request) {
 		response.Playlists = append(response.Playlists, playlistResponse{
 			ID:        p.ID,
 			Name:      p.Name,
-			CreatedAt: p.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt: p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt: p.CreatedAt.Format(timeFormatISO8601),
+			UpdatedAt: p.UpdatedAt.Format(timeFormatISO8601),
 		})
 	}
 
@@ -127,8 +146,8 @@ func (h *PlaylistHandler) create(w http.ResponseWriter, r *http.Request) {
 	response := playlistResponse{
 		ID:        playlist.ID,
 		Name:      playlist.Name,
-		CreatedAt: playlist.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: playlist.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt: playlist.CreatedAt.Format(timeFormatISO8601),
+		UpdatedAt: playlist.UpdatedAt.Format(timeFormatISO8601),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -177,15 +196,15 @@ func (h *PlaylistHandler) Get(w http.ResponseWriter, r *http.Request) {
 			DurationSeconds: track.DurationSeconds,
 			ThumbnailURL:    track.ThumbnailURL,
 			FileSizeBytes:   track.FileSizeBytes,
-			CreatedAt:       track.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt:       track.CreatedAt.Format(timeFormatISO8601),
 		})
 	}
 
 	response := playlistWithTracksResponse{
 		ID:        playlist.ID,
 		Name:      playlist.Name,
-		CreatedAt: playlist.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: playlist.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt: playlist.CreatedAt.Format(timeFormatISO8601),
+		UpdatedAt: playlist.UpdatedAt.Format(timeFormatISO8601),
 		Tracks:    tracks,
 	}
 
@@ -233,8 +252,8 @@ func (h *PlaylistHandler) Update(w http.ResponseWriter, r *http.Request) {
 	response := playlistResponse{
 		ID:        playlist.ID,
 		Name:      playlist.Name,
-		CreatedAt: playlist.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: playlist.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt: playlist.CreatedAt.Format(timeFormatISO8601),
+		UpdatedAt: playlist.UpdatedAt.Format(timeFormatISO8601),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -287,15 +306,7 @@ func (h *PlaylistHandler) AddTrack(w http.ResponseWriter, r *http.Request) {
 	}
 	playlistID := parts[0]
 
-	// Verify playlist belongs to user
-	_, err := h.db.GetPlaylistByID(r.Context(), playlistID, userID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			writeError(w, http.StatusNotFound, "playlist not found")
-			return
-		}
-		log.Printf("Failed to get playlist: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to verify playlist")
+	if h.verifyPlaylistOwnership(r.Context(), w, playlistID, userID) == nil {
 		return
 	}
 
@@ -311,7 +322,7 @@ func (h *PlaylistHandler) AddTrack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify track belongs to user
-	_, err = h.db.GetTrackByID(r.Context(), req.TrackID, userID)
+	_, err := h.db.GetTrackByID(r.Context(), req.TrackID, userID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "track not found")
@@ -350,19 +361,11 @@ func (h *PlaylistHandler) RemoveTrack(w http.ResponseWriter, r *http.Request) {
 	playlistID := parts[0]
 	trackID := parts[2]
 
-	// Verify playlist belongs to user
-	_, err := h.db.GetPlaylistByID(r.Context(), playlistID, userID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			writeError(w, http.StatusNotFound, "playlist not found")
-			return
-		}
-		log.Printf("Failed to get playlist: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to verify playlist")
+	if h.verifyPlaylistOwnership(r.Context(), w, playlistID, userID) == nil {
 		return
 	}
 
-	err = h.db.RemoveTrackFromPlaylist(r.Context(), playlistID, trackID)
+	err := h.db.RemoveTrackFromPlaylist(r.Context(), playlistID, trackID)
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "track not in playlist")
@@ -393,15 +396,7 @@ func (h *PlaylistHandler) ReorderTracks(w http.ResponseWriter, r *http.Request) 
 	}
 	playlistID := parts[0]
 
-	// Verify playlist belongs to user
-	_, err := h.db.GetPlaylistByID(r.Context(), playlistID, userID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			writeError(w, http.StatusNotFound, "playlist not found")
-			return
-		}
-		log.Printf("Failed to get playlist: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to verify playlist")
+	if h.verifyPlaylistOwnership(r.Context(), w, playlistID, userID) == nil {
 		return
 	}
 
@@ -416,7 +411,7 @@ func (h *PlaylistHandler) ReorderTracks(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = h.db.ReorderPlaylistTracks(r.Context(), playlistID, req.TrackIDs)
+	err := h.db.ReorderPlaylistTracks(r.Context(), playlistID, req.TrackIDs)
 	if err != nil {
 		log.Printf("Failed to reorder playlist tracks: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to reorder tracks")

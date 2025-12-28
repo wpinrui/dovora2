@@ -254,7 +254,7 @@ go run cmd/server/main.go
 2. [x] Database connection (PostgreSQL, connection pooling, health check)
 3. [x] Database migrations (users, tracks, videos tables)
 4. [x] User registration endpoint (`POST /auth/register`)
-5. [ ] User login endpoint (`POST /auth/login`, JWT generation)
+5. [x] User login endpoint (`POST /auth/login`, JWT generation)
 6. [ ] JWT middleware (token validation, user context)
 7. [ ] Token refresh endpoint (`POST /auth/refresh`)
 8. [ ] Invite system (generate codes, validate on register)

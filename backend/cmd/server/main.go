@@ -25,6 +25,11 @@ func main() {
 		log.Fatal("DATABASE_URL environment variable is required")
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is required")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -42,10 +47,11 @@ func main() {
 	}
 	log.Println("Migrations complete")
 
-	authHandler := api.NewAuthHandler(database)
+	authHandler := api.NewAuthHandler(database, jwtSecret)
 
 	http.HandleFunc("/health", healthHandler(database))
 	http.HandleFunc("/auth/register", authHandler.Register)
+	http.HandleFunc("/auth/login", authHandler.Login)
 
 	server := &http.Server{
 		Addr:         ":" + port,

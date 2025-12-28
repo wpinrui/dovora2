@@ -13,11 +13,12 @@ import (
 )
 
 type AuthHandler struct {
-	db *db.DB
+	db        *db.DB
+	jwtSecret string
 }
 
-func NewAuthHandler(database *db.DB) *AuthHandler {
-	return &AuthHandler{db: database}
+func NewAuthHandler(database *db.DB, jwtSecret string) *AuthHandler {
+	return &AuthHandler{db: database, jwtSecret: jwtSecret}
 }
 
 type registerRequest struct {
@@ -28,6 +29,16 @@ type registerRequest struct {
 type registerResponse struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type loginResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 type errorResponse struct {
@@ -79,6 +90,57 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(registerResponse{
 		ID:    user.ID,
 		Email: user.Email,
+	})
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req loginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Email == "" {
+		writeError(w, http.StatusBadRequest, "email is required")
+		return
+	}
+	if req.Password == "" {
+		writeError(w, http.StatusBadRequest, "password is required")
+		return
+	}
+
+	user, err := h.db.GetUserByEmail(r.Context(), req.Email)
+	if err != nil {
+		log.Printf("Failed to get user: %v", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	if user == nil {
+		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	if !auth.CheckPassword(req.Password, user.PasswordHash) {
+		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	tokens, err := auth.GenerateTokenPair(user.ID, h.jwtSecret)
+	if err != nil {
+		log.Printf("Failed to generate tokens: %v", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(loginResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
 	})
 }
 

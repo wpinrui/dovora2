@@ -63,6 +63,11 @@ func WithFfmpegPath(path string) Option {
 	}
 }
 
+// videoURL returns the YouTube URL for a video ID
+func videoURL(videoID string) string {
+	return fmt.Sprintf(youtubeURLFormat, videoID)
+}
+
 // runYtdlp executes yt-dlp with the given arguments and returns the output
 func (d *Downloader) runYtdlp(ctx context.Context, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, d.ytdlpPath, args...)
@@ -98,7 +103,7 @@ func New(outputDir string, opts ...Option) (*Downloader, error) {
 
 // GetMetadata fetches metadata for a video without downloading it
 func (d *Downloader) GetMetadata(ctx context.Context, videoID string) (*Metadata, error) {
-	url := fmt.Sprintf(youtubeURLFormat, videoID)
+	url := videoURL(videoID)
 
 	output, err := d.runYtdlp(ctx, "--quiet", "--dump-json", "--no-download", url)
 	if err != nil {
@@ -148,7 +153,7 @@ func (d *Downloader) DownloadVideo(ctx context.Context, videoID string) (*Downlo
 }
 
 func (d *Downloader) download(ctx context.Context, videoID string, mediaType MediaType) (*DownloadResult, error) {
-	url := fmt.Sprintf(youtubeURLFormat, videoID)
+	url := videoURL(videoID)
 
 	// Create subdirectory based on media type
 	subDir := filepath.Join(d.outputDir, string(mediaType))
@@ -208,8 +213,8 @@ func (d *Downloader) download(ctx context.Context, videoID string, mediaType Med
 	}
 
 	// Verify file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("download completed but file not found at %s", filePath)
+	if _, err := os.Stat(filePath); err != nil {
+		return nil, fmt.Errorf("verifying downloaded file: %w", err)
 	}
 
 	// Fetch metadata

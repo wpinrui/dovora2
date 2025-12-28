@@ -85,6 +85,7 @@ func main() {
 	http.HandleFunc("/download", middleware.RequireAuth(downloadHandler.Download))
 	http.HandleFunc("/files/", middleware.RequireAuth(fileHandler.ServeFile))
 	http.HandleFunc("/library/music", middleware.RequireAuth(libraryHandler.GetMusic))
+	http.HandleFunc("/library/videos", middleware.RequireAuth(libraryHandler.GetVideos))
 	http.HandleFunc("/library/", middleware.RequireAuth(libraryHandler.DeleteItem))
 
 	server := &http.Server{

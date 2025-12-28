@@ -227,3 +227,65 @@ func (db *DB) DeleteTrack(ctx context.Context, trackID, userID string) (string, 
 
 	return filePath, nil
 }
+
+// GetVideosByUserID retrieves all videos for a user, ordered by most recent first
+func (db *DB) GetVideosByUserID(ctx context.Context, userID string) ([]Video, error) {
+	query := `
+		SELECT id, user_id, youtube_id, title, channel, duration_seconds, thumbnail_url, file_path, file_size_bytes, quality, created_at, updated_at
+		FROM videos
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := db.Pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var videos []Video
+	for rows.Next() {
+		var video Video
+		err := rows.Scan(
+			&video.ID,
+			&video.UserID,
+			&video.YoutubeID,
+			&video.Title,
+			&video.Channel,
+			&video.DurationSeconds,
+			&video.ThumbnailURL,
+			&video.FilePath,
+			&video.FileSizeBytes,
+			&video.Quality,
+			&video.CreatedAt,
+			&video.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		videos = append(videos, video)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return videos, nil
+}
+
+// DeleteVideo deletes a video by ID for a specific user and returns the file path
+func (db *DB) DeleteVideo(ctx context.Context, videoID, userID string) (string, error) {
+	query := `
+		DELETE FROM videos
+		WHERE id = $1 AND user_id = $2
+		RETURNING file_path
+	`
+
+	var filePath string
+	err := db.Pool.QueryRow(ctx, query, videoID, userID).Scan(&filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return filePath, nil
+}

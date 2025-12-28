@@ -263,7 +263,7 @@ go run cmd/server/main.go
 11. [x] Download endpoint (`POST /download`)
 12. [x] File serving endpoint (`GET /files/{id}`)
 13. [x] Music library endpoints (`GET /library/music`, `DELETE /library/{id}`)
-14. [ ] Video library endpoints (`GET /library/videos`)
+14. [x] Video library endpoints (`GET /library/videos`)
 15. [ ] Track metadata update endpoint (rename title/artist)
 16. [ ] Lyrics endpoint (`GET /lyrics`, Genius API integration)
 17. [ ] Playlist CRUD endpoints

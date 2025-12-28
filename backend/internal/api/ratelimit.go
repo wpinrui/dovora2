@@ -36,19 +36,27 @@ func NewRateLimiter(rps float64, burst int) *RateLimiter {
 func (rl *RateLimiter) getLimiter(key string) *rate.Limiter {
 	now := time.Now()
 
+	// Fast path: entry already exists
 	if v, ok := rl.limiters.Load(key); ok {
 		entry := v.(*limiterEntry)
 		entry.lastSeen = now
 		return entry.limiter
 	}
 
-	limiter := rate.NewLimiter(rl.rate, rl.burst)
-	entry := &limiterEntry{
-		limiter:  limiter,
+	// Slow path: create new entry, use LoadOrStore to handle race
+	newEntry := &limiterEntry{
+		limiter:  rate.NewLimiter(rl.rate, rl.burst),
 		lastSeen: now,
 	}
-	rl.limiters.Store(key, entry)
-	return limiter
+
+	v, loaded := rl.limiters.LoadOrStore(key, newEntry)
+	entry := v.(*limiterEntry)
+
+	if loaded {
+		entry.lastSeen = now
+	}
+
+	return entry.limiter
 }
 
 // Allow checks if a request from the given key is allowed

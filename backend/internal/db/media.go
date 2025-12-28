@@ -105,3 +105,64 @@ func (db *DB) CreateVideo(ctx context.Context, video *Video) (*Video, error) {
 
 	return video, nil
 }
+
+// GetTrackByID retrieves a track by ID for a specific user
+func (db *DB) GetTrackByID(ctx context.Context, trackID, userID string) (*Track, error) {
+	query := `
+		SELECT id, user_id, youtube_id, title, artist, duration_seconds, thumbnail_url, file_path, file_size_bytes, created_at, updated_at
+		FROM tracks
+		WHERE id = $1 AND user_id = $2
+	`
+
+	track := &Track{}
+	err := db.Pool.QueryRow(ctx, query, trackID, userID).Scan(
+		&track.ID,
+		&track.UserID,
+		&track.YoutubeID,
+		&track.Title,
+		&track.Artist,
+		&track.DurationSeconds,
+		&track.ThumbnailURL,
+		&track.FilePath,
+		&track.FileSizeBytes,
+		&track.CreatedAt,
+		&track.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return track, nil
+}
+
+// GetVideoByID retrieves a video by ID for a specific user
+func (db *DB) GetVideoByID(ctx context.Context, videoID, userID string) (*Video, error) {
+	query := `
+		SELECT id, user_id, youtube_id, title, channel, duration_seconds, thumbnail_url, file_path, file_size_bytes, quality, created_at, updated_at
+		FROM videos
+		WHERE id = $1 AND user_id = $2
+	`
+
+	video := &Video{}
+	err := db.Pool.QueryRow(ctx, query, videoID, userID).Scan(
+		&video.ID,
+		&video.UserID,
+		&video.YoutubeID,
+		&video.Title,
+		&video.Channel,
+		&video.DurationSeconds,
+		&video.ThumbnailURL,
+		&video.FilePath,
+		&video.FileSizeBytes,
+		&video.Quality,
+		&video.CreatedAt,
+		&video.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return video, nil
+}

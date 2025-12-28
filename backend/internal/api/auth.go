@@ -41,6 +41,10 @@ type loginResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 type errorResponse struct {
 	Error string `json:"error"`
 }
@@ -131,6 +135,43 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tokens, err := auth.GenerateTokenPair(user.ID, h.jwtSecret)
+	if err != nil {
+		log.Printf("Failed to generate tokens: %v", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(loginResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+	})
+}
+
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req refreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.RefreshToken == "" {
+		writeError(w, http.StatusBadRequest, "refresh_token is required")
+		return
+	}
+
+	claims, err := auth.ValidateToken(req.RefreshToken, h.jwtSecret, auth.TokenTypeRefresh)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid or expired refresh token")
+		return
+	}
+
+	tokens, err := auth.GenerateTokenPair(claims.UserID, h.jwtSecret)
 	if err != nil {
 		log.Printf("Failed to generate tokens: %v", err)
 		writeError(w, http.StatusInternalServerError, "internal server error")

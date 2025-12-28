@@ -1,0 +1,48 @@
+# Old dovora v1
+old/
+
+# Agent files
+.claude/
+agents/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Android
+*.apk
+*.aab
+*.dex
+*.class
+local.properties
+secrets.properties
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+build/
+dist/
+out/
+
+# Environment
+.env
+.env.local
+*.env
+
+# Logs
+*.log

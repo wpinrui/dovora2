@@ -82,7 +82,8 @@ func main() {
 	libraryHandler := api.NewLibraryHandler(database)
 	lyricsHandler := api.NewLyricsHandler(lyricsClient)
 	playlistHandler := api.NewPlaylistHandler(database)
-	middleware := api.NewMiddleware(jwtSecret)
+	adminHandler := api.NewAdminHandler(database)
+	middleware := api.NewMiddleware(jwtSecret, database)
 
 	// Rate limiters: (requests per second, burst)
 	authLimiter := api.NewRateLimiter(0.17, 5)     // ~10 req/min, burst of 5
@@ -105,6 +106,12 @@ func main() {
 	http.HandleFunc("/tracks/", apiLimiter.RateLimit(middleware.RequireAuth(libraryHandler.UpdateTrack)))
 	http.HandleFunc("/playlists", apiLimiter.RateLimit(middleware.RequireAuth(playlistHandler.HandlePlaylists)))
 	http.HandleFunc("/playlists/", apiLimiter.RateLimit(middleware.RequireAuth(playlistHandler.HandlePlaylist)))
+
+	// Admin endpoints
+	http.HandleFunc("/admin/users", apiLimiter.RateLimit(middleware.RequireAuth(middleware.RequireAdmin(adminHandler.HandleUsers))))
+	http.HandleFunc("/admin/users/", apiLimiter.RateLimit(middleware.RequireAuth(middleware.RequireAdmin(adminHandler.HandleUsers))))
+	http.HandleFunc("/admin/invites", apiLimiter.RateLimit(middleware.RequireAuth(middleware.RequireAdmin(adminHandler.HandleInvites))))
+	http.HandleFunc("/admin/invites/", apiLimiter.RateLimit(middleware.RequireAuth(middleware.RequireAdmin(adminHandler.HandleInvites))))
 
 	server := &http.Server{
 		Addr:         ":" + port,

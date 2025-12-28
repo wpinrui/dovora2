@@ -257,7 +257,7 @@ go run cmd/server/main.go
 5. [x] User login endpoint (`POST /auth/login`, JWT generation)
 6. [x] JWT middleware (token validation, user context)
 7. [x] Token refresh endpoint (`POST /auth/refresh`)
-8. [ ] Invite system (generate codes, validate on register)
+8. [x] Invite system (generate codes, validate on register)
 9. [ ] Search endpoint (`GET /search`, Invidious API proxy)
 10. [ ] yt-dlp integration (download audio/video, extract metadata)
 11. [ ] Download endpoint (`POST /download`)

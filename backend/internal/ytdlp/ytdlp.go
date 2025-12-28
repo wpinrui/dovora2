@@ -3,6 +3,7 @@ package ytdlp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -67,7 +68,8 @@ func (d *Downloader) runYtdlp(ctx context.Context, args ...string) ([]byte, erro
 	cmd := exec.CommandContext(ctx, d.ytdlpPath, args...)
 	output, err := cmd.Output()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			return nil, fmt.Errorf("yt-dlp failed: %s", string(exitErr.Stderr))
 		}
 		return nil, fmt.Errorf("executing yt-dlp: %w", err)
@@ -98,7 +100,7 @@ func New(outputDir string, opts ...Option) (*Downloader, error) {
 func (d *Downloader) GetMetadata(ctx context.Context, videoID string) (*Metadata, error) {
 	url := fmt.Sprintf(youtubeURLFormat, videoID)
 
-	output, err := d.runYtdlp(ctx, "--dump-json", "--no-download", url)
+	output, err := d.runYtdlp(ctx, "--quiet", "--dump-json", "--no-download", url)
 	if err != nil {
 		return nil, err
 	}

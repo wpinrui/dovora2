@@ -2,11 +2,15 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// ErrNotFound is returned when a requested resource doesn't exist
+var ErrNotFound = errors.New("not found")
 
 type DB struct {
 	Pool *pgxpool.Pool

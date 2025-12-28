@@ -81,6 +81,7 @@ func main() {
 	fileHandler := api.NewFileHandler(database)
 	libraryHandler := api.NewLibraryHandler(database)
 	lyricsHandler := api.NewLyricsHandler(lyricsClient)
+	playlistHandler := api.NewPlaylistHandler(database)
 	middleware := api.NewMiddleware(jwtSecret)
 
 	http.HandleFunc("/health", healthHandler(database))
@@ -97,6 +98,8 @@ func main() {
 	http.HandleFunc("/library/videos", middleware.RequireAuth(libraryHandler.GetVideos))
 	http.HandleFunc("/library/", middleware.RequireAuth(libraryHandler.DeleteItem))
 	http.HandleFunc("/tracks/", middleware.RequireAuth(libraryHandler.UpdateTrack))
+	http.HandleFunc("/playlists", middleware.RequireAuth(playlistHandler.HandlePlaylists))
+	http.HandleFunc("/playlists/", middleware.RequireAuth(playlistHandler.HandlePlaylist))
 
 	server := &http.Server{
 		Addr:         ":" + port,

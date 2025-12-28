@@ -266,7 +266,7 @@ go run cmd/server/main.go
 14. [x] Video library endpoints (`GET /library/videos`)
 15. [x] Track metadata update endpoint (rename title/artist)
 16. [x] Lyrics endpoint (`GET /lyrics`, Genius API integration)
-17. [ ] Playlist CRUD endpoints
+17. [x] Playlist CRUD endpoints
 18. [ ] Dockerfile + docker-compose setup
 19. [ ] Rate limiting middleware
 20. [ ] Admin endpoints (manage users, invites)

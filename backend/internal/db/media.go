@@ -211,6 +211,37 @@ func (db *DB) GetTracksByUserID(ctx context.Context, userID string) ([]Track, er
 	return tracks, nil
 }
 
+// UpdateTrack updates the title and artist of a track for a specific user
+func (db *DB) UpdateTrack(ctx context.Context, trackID, userID, title, artist string) (*Track, error) {
+	query := `
+		UPDATE tracks
+		SET title = $3, artist = $4, updated_at = NOW()
+		WHERE id = $1 AND user_id = $2
+		RETURNING id, user_id, youtube_id, title, artist, duration_seconds, thumbnail_url, file_path, file_size_bytes, created_at, updated_at
+	`
+
+	track := &Track{}
+	err := db.Pool.QueryRow(ctx, query, trackID, userID, title, artist).Scan(
+		&track.ID,
+		&track.UserID,
+		&track.YoutubeID,
+		&track.Title,
+		&track.Artist,
+		&track.DurationSeconds,
+		&track.ThumbnailURL,
+		&track.FilePath,
+		&track.FileSizeBytes,
+		&track.CreatedAt,
+		&track.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return track, nil
+}
+
 // DeleteTrack deletes a track by ID for a specific user and returns the file path
 func (db *DB) DeleteTrack(ctx context.Context, trackID, userID string) (string, error) {
 	query := `

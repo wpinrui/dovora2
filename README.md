@@ -264,7 +264,7 @@ go run cmd/server/main.go
 12. [x] File serving endpoint (`GET /files/{id}`)
 13. [x] Music library endpoints (`GET /library/music`, `DELETE /library/{id}`)
 14. [x] Video library endpoints (`GET /library/videos`)
-15. [ ] Track metadata update endpoint (rename title/artist)
+15. [x] Track metadata update endpoint (rename title/artist)
 16. [ ] Lyrics endpoint (`GET /lyrics`, Genius API integration)
 17. [ ] Playlist CRUD endpoints
 18. [ ] Dockerfile + docker-compose setup

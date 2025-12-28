@@ -87,6 +87,7 @@ func main() {
 	http.HandleFunc("/library/music", middleware.RequireAuth(libraryHandler.GetMusic))
 	http.HandleFunc("/library/videos", middleware.RequireAuth(libraryHandler.GetVideos))
 	http.HandleFunc("/library/", middleware.RequireAuth(libraryHandler.DeleteItem))
+	http.HandleFunc("/tracks/", middleware.RequireAuth(libraryHandler.UpdateTrack))
 
 	server := &http.Server{
 		Addr:         ":" + port,

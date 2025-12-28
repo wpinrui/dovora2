@@ -1,0 +1,224 @@
+package ytdlp
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+// MediaType represents the type of media to download
+type MediaType string
+
+const (
+	MediaTypeAudio MediaType = "audio"
+	MediaTypeVideo MediaType = "video"
+)
+
+// Metadata contains information about a video/audio
+type Metadata struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Artist      string `json:"artist,omitempty"`
+	Channel     string `json:"channel"`
+	Duration    int    `json:"duration"`
+	Thumbnail   string `json:"thumbnail"`
+	Description string `json:"description,omitempty"`
+}
+
+// DownloadResult contains information about a completed download
+type DownloadResult struct {
+	FilePath  string
+	Metadata  Metadata
+	MediaType MediaType
+}
+
+// Downloader wraps yt-dlp for downloading media
+type Downloader struct {
+	outputDir  string
+	ytdlpPath  string
+	ffmpegPath string
+}
+
+// Option configures the Downloader
+type Option func(*Downloader)
+
+// WithYtdlpPath sets a custom path to the yt-dlp executable
+func WithYtdlpPath(path string) Option {
+	return func(d *Downloader) {
+		d.ytdlpPath = path
+	}
+}
+
+// WithFfmpegPath sets a custom path to the ffmpeg executable
+func WithFfmpegPath(path string) Option {
+	return func(d *Downloader) {
+		d.ffmpegPath = path
+	}
+}
+
+// New creates a new Downloader
+func New(outputDir string, opts ...Option) (*Downloader, error) {
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return nil, fmt.Errorf("creating output directory: %w", err)
+	}
+
+	d := &Downloader{
+		outputDir:  outputDir,
+		ytdlpPath:  "yt-dlp",
+		ffmpegPath: "ffmpeg",
+	}
+
+	for _, opt := range opts {
+		opt(d)
+	}
+
+	return d, nil
+}
+
+// GetMetadata fetches metadata for a video without downloading it
+func (d *Downloader) GetMetadata(ctx context.Context, videoID string) (*Metadata, error) {
+	url := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
+
+	args := []string{
+		"--dump-json",
+		"--no-download",
+		url,
+	}
+
+	cmd := exec.CommandContext(ctx, d.ytdlpPath, args...)
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("yt-dlp failed: %s", string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("executing yt-dlp: %w", err)
+	}
+
+	var raw struct {
+		ID          string `json:"id"`
+		Title       string `json:"title"`
+		Artist      string `json:"artist"`
+		Channel     string `json:"channel"`
+		Uploader    string `json:"uploader"`
+		Duration    int    `json:"duration"`
+		Thumbnail   string `json:"thumbnail"`
+		Description string `json:"description"`
+	}
+
+	if err := json.Unmarshal(output, &raw); err != nil {
+		return nil, fmt.Errorf("parsing metadata: %w", err)
+	}
+
+	// Use uploader as fallback for channel
+	channel := raw.Channel
+	if channel == "" {
+		channel = raw.Uploader
+	}
+
+	return &Metadata{
+		ID:          raw.ID,
+		Title:       raw.Title,
+		Artist:      raw.Artist,
+		Channel:     channel,
+		Duration:    raw.Duration,
+		Thumbnail:   raw.Thumbnail,
+		Description: raw.Description,
+	}, nil
+}
+
+// DownloadAudio downloads audio in M4A format
+func (d *Downloader) DownloadAudio(ctx context.Context, videoID string) (*DownloadResult, error) {
+	return d.download(ctx, videoID, MediaTypeAudio)
+}
+
+// DownloadVideo downloads video in the best available quality
+func (d *Downloader) DownloadVideo(ctx context.Context, videoID string) (*DownloadResult, error) {
+	return d.download(ctx, videoID, MediaTypeVideo)
+}
+
+func (d *Downloader) download(ctx context.Context, videoID string, mediaType MediaType) (*DownloadResult, error) {
+	url := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
+
+	// Create subdirectory based on media type
+	subDir := filepath.Join(d.outputDir, string(mediaType))
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		return nil, fmt.Errorf("creating subdirectory: %w", err)
+	}
+
+	// Output template: videoID.ext
+	outputTemplate := filepath.Join(subDir, "%(id)s.%(ext)s")
+
+	var args []string
+	var expectedExt string
+
+	switch mediaType {
+	case MediaTypeAudio:
+		args = []string{
+			"-x",                       // Extract audio
+			"--audio-format", "m4a",    // Convert to M4A
+			"--audio-quality", "0",     // Best quality
+			"-o", outputTemplate,
+			"--print", "after_move:filepath", // Print final path
+			"--no-playlist",
+			url,
+		}
+		expectedExt = "m4a"
+	case MediaTypeVideo:
+		args = []string{
+			"-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+			"--merge-output-format", "mp4",
+			"-o", outputTemplate,
+			"--print", "after_move:filepath",
+			"--no-playlist",
+			url,
+		}
+		expectedExt = "mp4"
+	default:
+		return nil, fmt.Errorf("unsupported media type: %s", mediaType)
+	}
+
+	// Add ffmpeg path if custom
+	if d.ffmpegPath != "ffmpeg" {
+		args = append([]string{"--ffmpeg-location", d.ffmpegPath}, args...)
+	}
+
+	cmd := exec.CommandContext(ctx, d.ytdlpPath, args...)
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("yt-dlp failed: %s", string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("executing yt-dlp: %w", err)
+	}
+
+	// Parse the output file path
+	filePath := strings.TrimSpace(string(output))
+	if filePath == "" {
+		// Fallback: construct expected path
+		filePath = filepath.Join(subDir, videoID+"."+expectedExt)
+	}
+
+	// Verify file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("download completed but file not found at %s", filePath)
+	}
+
+	// Fetch metadata
+	metadata, err := d.GetMetadata(ctx, videoID)
+	if err != nil {
+		// Non-fatal: return result with minimal metadata
+		metadata = &Metadata{
+			ID: videoID,
+		}
+	}
+
+	return &DownloadResult{
+		FilePath:  filePath,
+		Metadata:  *metadata,
+		MediaType: mediaType,
+	}, nil
+}

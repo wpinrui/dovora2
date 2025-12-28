@@ -253,7 +253,7 @@ go run cmd/server/main.go
 1. [x] Project scaffolding (go mod, folder structure, main entrypoint)
 2. [x] Database connection (PostgreSQL, connection pooling, health check)
 3. [x] Database migrations (users, tracks, videos tables)
-4. [ ] User registration endpoint (`POST /auth/register`)
+4. [x] User registration endpoint (`POST /auth/register`)
 5. [ ] User login endpoint (`POST /auth/login`, JWT generation)
 6. [ ] JWT middleware (token validation, user context)
 7. [ ] Token refresh endpoint (`POST /auth/refresh`)

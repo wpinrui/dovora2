@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/wpinrui/dovora2/backend/internal/api"
 	"github.com/wpinrui/dovora2/backend/internal/db"
 )
 
@@ -41,7 +42,10 @@ func main() {
 	}
 	log.Println("Migrations complete")
 
+	authHandler := api.NewAuthHandler(database)
+
 	http.HandleFunc("/health", healthHandler(database))
+	http.HandleFunc("/auth/register", authHandler.Register)
 
 	server := &http.Server{
 		Addr:         ":" + port,

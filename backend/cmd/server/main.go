@@ -35,6 +35,12 @@ func main() {
 
 	log.Println("Connected to database")
 
+	// Run migrations
+	if err := database.Migrate(ctx); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+	log.Println("Migrations complete")
+
 	http.HandleFunc("/health", healthHandler(database))
 
 	server := &http.Server{

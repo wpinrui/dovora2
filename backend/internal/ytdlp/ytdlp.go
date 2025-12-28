@@ -19,6 +19,7 @@ const (
 	MediaTypeVideo MediaType = "video"
 
 	youtubeURLFormat = "https://www.youtube.com/watch?v=%s"
+	dirPermission    = 0755
 )
 
 // Metadata contains information about a video/audio
@@ -84,7 +85,7 @@ func (d *Downloader) runYtdlp(ctx context.Context, args ...string) ([]byte, erro
 
 // New creates a new Downloader
 func New(outputDir string, opts ...Option) (*Downloader, error) {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, dirPermission); err != nil {
 		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
 
@@ -163,7 +164,7 @@ func (d *Downloader) download(ctx context.Context, videoID string, mediaType Med
 
 	// Create subdirectory based on media type
 	subDir := filepath.Join(d.outputDir, string(mediaType))
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, dirPermission); err != nil {
 		return nil, fmt.Errorf("creating subdirectory: %w", err)
 	}
 

@@ -57,8 +57,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
@@ -136,7 +136,7 @@ import kotlin.math.roundToInt
 
 sealed class Screen(val route: String, val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Library : Screen("library", "Library", Icons.Default.LibraryMusic)
-    object Playlists : Screen("playlists", "Playlists", Icons.Default.QueueMusic)
+    object Playlists : Screen("playlists", "Playlists", Icons.AutoMirrored.Filled.QueueMusic)
     object Search : Screen("search", "Search", Icons.Default.Search) {
         const val ROUTE_WITH_QUERY = "search?query={query}"
         fun createRouteWithQuery(query: String) = "search?query=${java.net.URLEncoder.encode(query, "UTF-8")}"
@@ -573,7 +573,7 @@ fun MainScreen() {
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.QueueMusic,
+                                    imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                                     contentDescription = null,
                                     tint = Color.White.copy(alpha = 0.3f),
                                     modifier = Modifier.size(64.dp)

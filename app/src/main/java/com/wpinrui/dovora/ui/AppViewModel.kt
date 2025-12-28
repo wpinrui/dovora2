@@ -10,7 +10,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.palette.graphics.Palette
 import com.wpinrui.dovora.data.download.DownloadStorage
-import com.wpinrui.dovora.data.download.MediaKind
 import com.wpinrui.dovora.data.download.VideoMetadataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

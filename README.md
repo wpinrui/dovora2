@@ -251,7 +251,7 @@ go run cmd/server/main.go
 ### Backend
 
 1. [x] Project scaffolding (go mod, folder structure, main entrypoint)
-2. [ ] Database connection (PostgreSQL, connection pooling, health check)
+2. [x] Database connection (PostgreSQL, connection pooling, health check)
 3. [ ] Database migrations (users, tracks, videos tables)
 4. [ ] User registration endpoint (`POST /auth/register`)
 5. [ ] User login endpoint (`POST /auth/login`, JWT generation)

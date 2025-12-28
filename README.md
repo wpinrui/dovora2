@@ -244,7 +244,7 @@ go run cmd/server/main.go
 
 ### Backend
 
-- [ ] Project scaffolding (go mod, folder structure, main entrypoint)
+- [x] Project scaffolding (go mod, folder structure, main entrypoint)
 - [ ] Database connection (PostgreSQL, connection pooling, health check)
 - [ ] Database migrations (users, tracks, videos tables)
 - [ ] User registration endpoint (`POST /auth/register`)

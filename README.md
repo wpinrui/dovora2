@@ -98,6 +98,12 @@ dovora is a multi-user media management system consisting of:
 | POST | `/auth/login` | Login, returns JWT token |
 | POST | `/auth/refresh` | Refresh JWT token |
 
+### Search
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/search` | Search YouTube via Invidious API |
+
 ### Media
 
 | Method | Endpoint | Description |
@@ -252,6 +258,7 @@ go run cmd/server/main.go
 - [ ] JWT middleware (token validation, user context)
 - [ ] Token refresh endpoint (`POST /auth/refresh`)
 - [ ] Invite system (generate codes, validate on register)
+- [ ] Search endpoint (`GET /search`, Invidious API proxy)
 - [ ] yt-dlp integration (download audio/video, extract metadata)
 - [ ] Download endpoint (`POST /download`)
 - [ ] File serving endpoint (`GET /files/{id}`)

@@ -309,11 +309,12 @@ func TestDownloadAudio(t *testing.T) {
 		testFile := filepath.Join(audioDir, "test123.m4a")
 		_ = os.WriteFile(testFile, []byte("fake audio"), 0644)
 
-		d, _ := New(tmpDir, WithCommandRunner(&sequentialMockRunner{
-			responses: []mockResponse{
-				{output: []byte(testFile + "\n")},
-				{output: []byte(`{"id": "test123", "title": "Test", "duration": 60}`)},
-			},
+		// Create info.json file (written by --write-info-json flag)
+		infoJSON := filepath.Join(audioDir, "test123.info.json")
+		_ = os.WriteFile(infoJSON, []byte(`{"id": "test123", "title": "Test", "duration": 60}`), 0644)
+
+		d, _ := New(tmpDir, WithCommandRunner(&mockRunner{
+			output: []byte(testFile + "\n"),
 		}))
 
 		result, err := d.DownloadAudio(context.Background(), "test123")
@@ -369,11 +370,12 @@ func TestDownloadVideo(t *testing.T) {
 		testFile := filepath.Join(videoDir, "test123.mp4")
 		_ = os.WriteFile(testFile, []byte("fake video"), 0644)
 
-		d, _ := New(tmpDir, WithCommandRunner(&sequentialMockRunner{
-			responses: []mockResponse{
-				{output: []byte(testFile + "\n")},
-				{output: []byte(`{"id": "test123", "title": "Test", "duration": 60}`)},
-			},
+		// Create info.json file (written by --write-info-json flag)
+		infoJSON := filepath.Join(videoDir, "test123.info.json")
+		_ = os.WriteFile(infoJSON, []byte(`{"id": "test123", "title": "Test", "duration": 60}`), 0644)
+
+		d, _ := New(tmpDir, WithCommandRunner(&mockRunner{
+			output: []byte(testFile + "\n"),
 		}))
 
 		result, err := d.DownloadVideo(context.Background(), "test123")
@@ -395,26 +397,27 @@ func TestDownloadVideo(t *testing.T) {
 		testFile := filepath.Join(videoDir, "test123.mp4")
 		_ = os.WriteFile(testFile, []byte("fake video"), 0644)
 
-		seqRunner := &sequentialMockRunner{
-			responses: []mockResponse{
-				{output: []byte(testFile + "\n")},
-				{output: []byte(`{"id": "test123", "title": "Test", "duration": 60}`)},
-			},
+		// Create info.json file (written by --write-info-json flag)
+		infoJSON := filepath.Join(videoDir, "test123.info.json")
+		_ = os.WriteFile(infoJSON, []byte(`{"id": "test123", "title": "Test", "duration": 60}`), 0644)
+
+		runner := &mockRunner{
+			output: []byte(testFile + "\n"),
 		}
 
 		d, _ := New(tmpDir,
 			WithFfmpegPath("/custom/ffmpeg"),
-			WithCommandRunner(seqRunner),
+			WithCommandRunner(runner),
 		)
 
 		_, _ = d.DownloadVideo(context.Background(), "test123")
 
-		// First call should have ffmpeg-location flag
-		if len(seqRunner.calls) < 1 {
+		// Should have ffmpeg-location flag
+		if len(runner.calls) < 1 {
 			t.Fatal("expected at least 1 call")
 		}
 
-		call := seqRunner.calls[0]
+		call := runner.calls[0]
 		foundFfmpegFlag := false
 		for i, arg := range call.args {
 			if arg == "--ffmpeg-location" && i+1 < len(call.args) && call.args[i+1] == "/custom/ffmpeg" {
@@ -429,24 +432,18 @@ func TestDownloadVideo(t *testing.T) {
 }
 
 func TestDownloadResult(t *testing.T) {
-	t.Run("contains minimal metadata on metadata fetch failure", func(t *testing.T) {
+	t.Run("contains minimal metadata when info.json missing", func(t *testing.T) {
 		tmpDir := t.TempDir()
 
-		// Create test file
+		// Create test file but NO info.json file
 		audioDir := filepath.Join(tmpDir, "audio")
 		_ = os.MkdirAll(audioDir, 0755)
 		testFile := filepath.Join(audioDir, "test123.m4a")
 		_ = os.WriteFile(testFile, []byte("fake audio"), 0644)
 
-		// First call succeeds (download), second call fails (metadata)
-		seqRunner := &sequentialMockRunner{
-			responses: []mockResponse{
-				{output: []byte(testFile + "\n")},
-				{err: errors.New("metadata fetch failed")},
-			},
-		}
-
-		d, _ := New(tmpDir, WithCommandRunner(seqRunner))
+		d, _ := New(tmpDir, WithCommandRunner(&mockRunner{
+			output: []byte(testFile + "\n"),
+		}))
 		result, err := d.DownloadAudio(context.Background(), "test123")
 		if err != nil {
 			t.Fatalf("DownloadAudio() error = %v", err)
@@ -470,15 +467,14 @@ func TestDownloadResult(t *testing.T) {
 		fallbackFile := filepath.Join(audioDir, "test123.m4a")
 		_ = os.WriteFile(fallbackFile, []byte("fake audio"), 0644)
 
-		// Return empty output to trigger fallback
-		seqRunner := &sequentialMockRunner{
-			responses: []mockResponse{
-				{output: []byte("")},
-				{output: []byte(`{"id": "test123", "title": "Test", "duration": 60}`)},
-			},
-		}
+		// Create info.json file
+		infoJSON := filepath.Join(audioDir, "test123.info.json")
+		_ = os.WriteFile(infoJSON, []byte(`{"id": "test123", "title": "Test", "duration": 60}`), 0644)
 
-		d, _ := New(tmpDir, WithCommandRunner(seqRunner))
+		// Return empty output to trigger fallback
+		d, _ := New(tmpDir, WithCommandRunner(&mockRunner{
+			output: []byte(""),
+		}))
 		result, err := d.DownloadAudio(context.Background(), "test123")
 		if err != nil {
 			t.Fatalf("DownloadAudio() error = %v", err)
@@ -488,28 +484,56 @@ func TestDownloadResult(t *testing.T) {
 			t.Errorf("FilePath = %v, want %v", result.FilePath, fallbackFile)
 		}
 	})
-}
 
-// sequentialMockRunner returns different responses for each call
-type sequentialMockRunner struct {
-	responses []mockResponse
-	calls     []mockCall
-	callIndex int
-}
+	t.Run("cleans up info.json after parsing", func(t *testing.T) {
+		tmpDir := t.TempDir()
 
-type mockResponse struct {
-	output []byte
-	err    error
-}
+		// Create test file and info.json
+		audioDir := filepath.Join(tmpDir, "audio")
+		_ = os.MkdirAll(audioDir, 0755)
+		testFile := filepath.Join(audioDir, "test123.m4a")
+		_ = os.WriteFile(testFile, []byte("fake audio"), 0644)
+		infoJSON := filepath.Join(audioDir, "test123.info.json")
+		_ = os.WriteFile(infoJSON, []byte(`{"id": "test123", "title": "Test", "duration": 60}`), 0644)
 
-func (m *sequentialMockRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	m.calls = append(m.calls, mockCall{name: name, args: args})
+		d, _ := New(tmpDir, WithCommandRunner(&mockRunner{
+			output: []byte(testFile + "\n"),
+		}))
+		_, err := d.DownloadAudio(context.Background(), "test123")
+		if err != nil {
+			t.Fatalf("DownloadAudio() error = %v", err)
+		}
 
-	if m.callIndex >= len(m.responses) {
-		return nil, errors.New("no more mock responses")
-	}
+		// Verify info.json was deleted
+		if _, err := os.Stat(infoJSON); !os.IsNotExist(err) {
+			t.Error("info.json should have been deleted after parsing")
+		}
+	})
 
-	resp := m.responses[m.callIndex]
-	m.callIndex++
-	return resp.output, resp.err
+	t.Run("makes only one yt-dlp call per download", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// Create test file and info.json
+		audioDir := filepath.Join(tmpDir, "audio")
+		_ = os.MkdirAll(audioDir, 0755)
+		testFile := filepath.Join(audioDir, "test123.m4a")
+		_ = os.WriteFile(testFile, []byte("fake audio"), 0644)
+		infoJSON := filepath.Join(audioDir, "test123.info.json")
+		_ = os.WriteFile(infoJSON, []byte(`{"id": "test123", "title": "Test", "duration": 60}`), 0644)
+
+		runner := &mockRunner{
+			output: []byte(testFile + "\n"),
+		}
+
+		d, _ := New(tmpDir, WithCommandRunner(runner))
+		_, err := d.DownloadAudio(context.Background(), "test123")
+		if err != nil {
+			t.Fatalf("DownloadAudio() error = %v", err)
+		}
+
+		// Should have exactly 1 call (download only, no separate metadata fetch)
+		if len(runner.calls) != 1 {
+			t.Errorf("expected 1 yt-dlp call, got %d", len(runner.calls))
+		}
+	})
 }

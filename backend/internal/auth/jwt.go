@@ -12,8 +12,16 @@ const (
 	RefreshTokenDuration = 7 * 24 * time.Hour
 )
 
+type TokenType string
+
+const (
+	TokenTypeAccess  TokenType = "access"
+	TokenTypeRefresh TokenType = "refresh"
+)
+
 type Claims struct {
-	UserID string `json:"user_id"`
+	UserID    string    `json:"user_id"`
+	TokenType TokenType `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
@@ -23,12 +31,12 @@ type TokenPair struct {
 }
 
 func GenerateTokenPair(userID, secret string) (*TokenPair, error) {
-	accessToken, err := generateToken(userID, secret, AccessTokenDuration)
+	accessToken, err := generateToken(userID, secret, TokenTypeAccess, AccessTokenDuration)
 	if err != nil {
 		return nil, fmt.Errorf("generate access token: %w", err)
 	}
 
-	refreshToken, err := generateToken(userID, secret, RefreshTokenDuration)
+	refreshToken, err := generateToken(userID, secret, TokenTypeRefresh, RefreshTokenDuration)
 	if err != nil {
 		return nil, fmt.Errorf("generate refresh token: %w", err)
 	}
@@ -39,9 +47,10 @@ func GenerateTokenPair(userID, secret string) (*TokenPair, error) {
 	}, nil
 }
 
-func generateToken(userID, secret string, duration time.Duration) (string, error) {
+func generateToken(userID, secret string, tokenType TokenType, duration time.Duration) (string, error) {
 	claims := Claims{
-		UserID: userID,
+		UserID:    userID,
+		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

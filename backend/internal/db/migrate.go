@@ -39,6 +39,9 @@ func (db *DB) Migrate(ctx context.Context) error {
 		}
 		applied[version] = true
 	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate applied migrations: %w", err)
+	}
 
 	// Read migration files
 	entries, err := migrationsFS.ReadDir("migrations")

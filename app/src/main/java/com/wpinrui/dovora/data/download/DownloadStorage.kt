@@ -1,7 +1,6 @@
 package com.wpinrui.dovora.data.download
 
 import android.content.Context
-import android.os.Build
 import android.os.Environment
 import java.io.File
 
@@ -17,35 +16,27 @@ object DownloadStorage {
     fun audioDirectory(context: Context): File = resolveDirectory(
         context = context,
         modernDirectory = Environment.DIRECTORY_MUSIC,
-        legacyDirectory = Environment.getExternalStorageDirectory(),
         subfolder = AUDIO_FOLDER
     )
 
     fun videoDirectory(context: Context): File = resolveDirectory(
         context = context,
         modernDirectory = Environment.DIRECTORY_MOVIES,
-        legacyDirectory = Environment.getExternalStorageDirectory(),
         subfolder = VIDEO_FOLDER
     )
 
     fun thumbnailDirectory(context: Context): File = resolveDirectory(
         context = context,
         modernDirectory = Environment.DIRECTORY_PICTURES,
-        legacyDirectory = Environment.getExternalStorageDirectory(),
         subfolder = THUMBNAIL_FOLDER
     )
 
     private fun resolveDirectory(
         context: Context,
         modernDirectory: String,
-        legacyDirectory: File,
         subfolder: String
     ): File {
-        val dir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            File(context.getExternalFilesDir(modernDirectory), subfolder)
-        } else {
-            File(legacyDirectory, subfolder)
-        }
+        val dir = File(context.getExternalFilesDir(modernDirectory), subfolder)
         dir.mkdirs()
         return dir
     }

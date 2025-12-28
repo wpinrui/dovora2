@@ -1,5 +1,6 @@
 package com.wpinrui.dovora.ui.playback
 
+import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
@@ -271,5 +272,5 @@ internal fun formatDuration(durationMs: Long): String {
     val totalSeconds = durationMs / 1000
     val minutes = totalSeconds / 60
     val seconds = (totalSeconds % 60).toInt()
-    return String.format("%d:%02d", minutes, seconds)
+    return String.format(Locale.ROOT, "%d:%02d", minutes, seconds)
 }

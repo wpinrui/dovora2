@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Opt-in to Media3 UnstableApi at project level -->
+    <issue id="UnsafeOptInUsageError">
+        <option name="opt-in" value="androidx.media3.common.util.UnstableApi" />
+    </issue>
+
+    <!-- local.properties is a local file, not committed -->
+    <issue id="PropertyEscape" severity="ignore" />
+</lint>

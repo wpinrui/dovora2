@@ -8,6 +8,7 @@ import com.wpinrui.dovora.data.api.model.InvidiousSearchResponse
 import com.wpinrui.dovora.data.model.SearchResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import java.util.Locale
 
 class SearchRepository(
     private val apiService: InvidiousApiService = RetrofitProvider.createApiService()
@@ -96,8 +97,8 @@ class SearchRepository(
         val secs = seconds % 60
         
         return when {
-            hours > 0 -> String.format("%d:%02d:%02d", hours, minutes, secs)
-            else -> String.format("%d:%02d", minutes, secs)
+            hours > 0 -> String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, secs)
+            else -> String.format(Locale.ROOT, "%d:%02d", minutes, secs)
         }
     }
     

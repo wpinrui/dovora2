@@ -84,3 +84,44 @@ func (db *DB) ListInvitesByCreator(ctx context.Context, creatorID string) ([]Inv
 
 	return invites, nil
 }
+
+func (db *DB) ListAllInvites(ctx context.Context) ([]Invite, error) {
+	rows, err := db.Pool.Query(ctx, `
+		SELECT id, code, created_by, used_by, created_at, used_at, expires_at
+		FROM invites
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list all invites: %w", err)
+	}
+	defer rows.Close()
+
+	var invites []Invite
+	for rows.Next() {
+		var invite Invite
+		if err := rows.Scan(
+			&invite.ID, &invite.Code, &invite.CreatedBy, &invite.UsedBy,
+			&invite.CreatedAt, &invite.UsedAt, &invite.ExpiresAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan invite: %w", err)
+		}
+		invites = append(invites, invite)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate invites: %w", err)
+	}
+
+	return invites, nil
+}
+
+func (db *DB) DeleteInvite(ctx context.Context, id string) error {
+	result, err := db.Pool.Exec(ctx, `DELETE FROM invites WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete invite: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return ErrInviteNotFound
+	}
+	return nil
+}

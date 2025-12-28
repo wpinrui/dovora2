@@ -269,7 +269,7 @@ go run cmd/server/main.go
 17. [x] Playlist CRUD endpoints
 18. [x] Dockerfile + docker-compose setup
 19. [x] Rate limiting middleware
-20. [ ] Admin endpoints (manage users, invites)
+20. [x] Admin endpoints (manage users, invites)
 
 ### Android Phase 1: Foundation
 

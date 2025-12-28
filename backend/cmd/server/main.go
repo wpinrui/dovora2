@@ -52,6 +52,7 @@ func main() {
 	http.HandleFunc("/health", healthHandler(database))
 	http.HandleFunc("/auth/register", authHandler.Register)
 	http.HandleFunc("/auth/login", authHandler.Login)
+	http.HandleFunc("/auth/refresh", authHandler.Refresh)
 
 	server := &http.Server{
 		Addr:         ":" + port,

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -43,7 +42,7 @@ func (h *FileHandler) ServeFile(w http.ResponseWriter, r *http.Request) {
 	// Try to find as track first
 	track, err := h.db.GetTrackByID(r.Context(), id, userID)
 	if err == nil {
-		h.serveMediaFile(w, r, track.FilePath, track.Title+".m4a", "audio/mp4", track.FileSizeBytes)
+		h.serveMediaFile(w, r, track.FilePath, track.Title+".m4a", "audio/mp4")
 		return
 	}
 
@@ -57,7 +56,7 @@ func (h *FileHandler) ServeFile(w http.ResponseWriter, r *http.Request) {
 	// Try to find as video
 	video, err := h.db.GetVideoByID(r.Context(), id, userID)
 	if err == nil {
-		h.serveMediaFile(w, r, video.FilePath, video.Title+".mp4", "video/mp4", video.FileSizeBytes)
+		h.serveMediaFile(w, r, video.FilePath, video.Title+".mp4", "video/mp4")
 		return
 	}
 
@@ -70,7 +69,7 @@ func (h *FileHandler) ServeFile(w http.ResponseWriter, r *http.Request) {
 	writeError(w, http.StatusInternalServerError, "database error")
 }
 
-func (h *FileHandler) serveMediaFile(w http.ResponseWriter, r *http.Request, filePath, filename, contentType string, expectedSize int64) {
+func (h *FileHandler) serveMediaFile(w http.ResponseWriter, r *http.Request, filePath, filename, contentType string) {
 	// Check file exists
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
@@ -96,11 +95,9 @@ func (h *FileHandler) serveMediaFile(w http.ResponseWriter, r *http.Request, fil
 	// Sanitize filename for Content-Disposition header
 	safeFilename := sanitizeFilename(filename)
 
-	// Set headers
+	// Set headers (http.ServeContent handles Content-Length and Accept-Ranges)
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", strconv.FormatInt(fileInfo.Size(), 10))
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+safeFilename+"\"")
-	w.Header().Set("Accept-Ranges", "bytes")
 
 	// Use http.ServeContent for proper range request support
 	http.ServeContent(w, r, safeFilename, fileInfo.ModTime(), file)

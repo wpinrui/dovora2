@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Dovora</string>
+    <string name="notification_play">Play</string>
+    <string name="notification_pause">Pause</string>
+    <string name="notification_rewind">Back 10s</string>
+    <string name="notification_forward">Forward 10s</string>
+</resources>

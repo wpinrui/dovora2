@@ -38,6 +38,7 @@ vendor/
 build/
 dist/
 out/
+.gradle/
 
 # Environment
 .env

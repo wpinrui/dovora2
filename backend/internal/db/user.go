@@ -10,7 +10,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-var ErrUserExists = errors.New("user with this email already exists")
+var (
+	ErrUserExists   = errors.New("user with this email already exists")
+	ErrUserNotFound = errors.New("user not found")
+)
 
 type User struct {
 	ID           string
@@ -141,6 +144,10 @@ func (db *DB) ListAllUsers(ctx context.Context) ([]User, error) {
 		users = append(users, user)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate users: %w", err)
+	}
+
 	return users, nil
 }
 
@@ -150,7 +157,7 @@ func (db *DB) DeleteUser(ctx context.Context, id string) error {
 		return fmt.Errorf("delete user: %w", err)
 	}
 	if result.RowsAffected() == 0 {
-		return errors.New("user not found")
+		return ErrUserNotFound
 	}
 	return nil
 }
@@ -163,7 +170,7 @@ func (db *DB) SetUserAdmin(ctx context.Context, id string, isAdmin bool) error {
 		return fmt.Errorf("set user admin: %w", err)
 	}
 	if result.RowsAffected() == 0 {
-		return errors.New("user not found")
+		return ErrUserNotFound
 	}
 	return nil
 }

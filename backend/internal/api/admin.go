@@ -105,7 +105,7 @@ func (h *AdminHandler) deleteUser(w http.ResponseWriter, r *http.Request, userID
 
 	err := h.db.DeleteUser(r.Context(), userID)
 	if err != nil {
-		if err.Error() == "user not found" {
+		if errors.Is(err, db.ErrUserNotFound) {
 			writeError(w, http.StatusNotFound, "user not found")
 			return
 		}
@@ -133,7 +133,7 @@ func (h *AdminHandler) setUserAdmin(w http.ResponseWriter, r *http.Request, user
 
 	err := h.db.SetUserAdmin(r.Context(), userID, req.IsAdmin)
 	if err != nil {
-		if err.Error() == "user not found" {
+		if errors.Is(err, db.ErrUserNotFound) {
 			writeError(w, http.StatusNotFound, "user not found")
 			return
 		}

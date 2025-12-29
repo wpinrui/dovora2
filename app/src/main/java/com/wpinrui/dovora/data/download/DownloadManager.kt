@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.File
 import java.util.UUID
 
 /**
@@ -21,8 +20,6 @@ class DownloadManager private constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val downloadRepository = DownloadRepository(context)
-    // TODO: Replace with backend API sync when implementing issue #27
-    // private val librarySync = LibrarySyncService.getInstance(context)
 
     private val _activeDownloads = MutableStateFlow<Map<String, ActiveDownload>>(emptyMap())
     val activeDownloads: StateFlow<Map<String, ActiveDownload>> = _activeDownloads.asStateFlow()
@@ -74,7 +71,7 @@ class DownloadManager private constructor(
 
     /**
      * Handles post-download actions (shimmer effect tracking).
-     * TODO: Add backend API sync when implementing issue #27
+     * Note: Backend library sync happens automatically when POST /download is called.
      */
     private suspend fun syncCompletedDownload(mediaKind: MediaKind, title: String) {
         // Track title for shimmer effect
@@ -82,9 +79,6 @@ class DownloadManager private constructor(
             MediaKind.AUDIO -> _recentlyCompletedTitles.update { it + title }
             MediaKind.VIDEO -> _recentlyCompletedVideoTitles.update { it + title }
         }
-
-        // TODO: Sync to backend API when implementing issue #27
-        // This will call POST /library/music or POST /library/videos
     }
 
     fun startAudioDownload(

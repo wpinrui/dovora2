@@ -273,7 +273,7 @@ go run cmd/server/main.go
 
 ### Android Phase 1: Foundation
 
-21. [ ] Remove Firebase dependencies
+21. [x] Remove Firebase dependencies
 22. [ ] API client setup (Retrofit, OkHttp with auth interceptor)
 23. [ ] Token storage (encrypted SharedPreferences)
 24. [ ] Login screen

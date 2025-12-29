@@ -277,7 +277,7 @@ go run cmd/server/main.go
 22. [x] API client setup (Retrofit, OkHttp with auth interceptor)
 23. [x] Token storage (encrypted SharedPreferences)
 24. [x] Login screen
-25. [ ] Register screen (with invite code)
+25. [x] Register screen (with invite code)
 26. [ ] Auth state management (logged in/out, token refresh)
 
 ### Android Phase 2: Music

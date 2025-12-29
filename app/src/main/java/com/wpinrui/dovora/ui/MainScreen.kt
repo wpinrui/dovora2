@@ -106,6 +106,7 @@ import com.wpinrui.dovora.data.download.DownloadState
 import com.wpinrui.dovora.data.download.MediaKind
 import com.wpinrui.dovora.ui.auth.AccountSheet
 import com.wpinrui.dovora.ui.auth.AuthViewModel
+import com.wpinrui.dovora.ui.auth.RegisterDialog
 import com.wpinrui.dovora.ui.auth.SignInDialog
 import com.wpinrui.dovora.ui.components.LibraryIconWithProgress
 import com.wpinrui.dovora.ui.playback.LyricsUiState
@@ -161,11 +162,15 @@ fun MainScreen() {
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, tokenStorage))
     val currentUser by authViewModel.currentUser.collectAsState()
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
+    val showRegisterDialog by authViewModel.showRegisterDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
     val isSigningIn by authViewModel.isSigningIn.collectAsState()
+    val isRegistering by authViewModel.isRegistering.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
     val email by authViewModel.email.collectAsState()
     val password by authViewModel.password.collectAsState()
+    val confirmPassword by authViewModel.confirmPassword.collectAsState()
+    val inviteCode by authViewModel.inviteCode.collectAsState()
 
     // Settings state
     val aiPrefillEnabled by authViewModel.aiPrefillEnabled.collectAsState()
@@ -1431,11 +1436,15 @@ private fun LibraryScreenWithModeSelector(
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, tokenStorage))
     val currentUser by authViewModel.currentUser.collectAsState()
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
+    val showRegisterDialog by authViewModel.showRegisterDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
     val isSigningIn by authViewModel.isSigningIn.collectAsState()
+    val isRegistering by authViewModel.isRegistering.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
     val email by authViewModel.email.collectAsState()
     val password by authViewModel.password.collectAsState()
+    val confirmPassword by authViewModel.confirmPassword.collectAsState()
+    val inviteCode by authViewModel.inviteCode.collectAsState()
 
     // Settings state
     val aiPrefillEnabled by authViewModel.aiPrefillEnabled.collectAsState()
@@ -1682,6 +1691,7 @@ private fun LibraryScreenWithModeSelector(
             SignInDialog(
                 onDismiss = { authViewModel.closeSignInDialog() },
                 onLogin = { authViewModel.login() },
+                onSwitchToRegister = { authViewModel.switchToRegister() },
                 email = email,
                 onEmailChange = { authViewModel.updateEmail(it) },
                 password = password,
@@ -1690,7 +1700,25 @@ private fun LibraryScreenWithModeSelector(
                 errorMessage = errorMessage
             )
         }
-        
+
+        if (showRegisterDialog) {
+            RegisterDialog(
+                onDismiss = { authViewModel.closeRegisterDialog() },
+                onRegister = { authViewModel.register() },
+                onSwitchToLogin = { authViewModel.switchToLogin() },
+                email = email,
+                onEmailChange = { authViewModel.updateEmail(it) },
+                password = password,
+                onPasswordChange = { authViewModel.updatePassword(it) },
+                confirmPassword = confirmPassword,
+                onConfirmPasswordChange = { authViewModel.updateConfirmPassword(it) },
+                inviteCode = inviteCode,
+                onInviteCodeChange = { authViewModel.updateInviteCode(it) },
+                isRegistering = isRegistering,
+                errorMessage = errorMessage
+            )
+        }
+
         // Account Sheet (bottom sheet instead of dialog)
         AccountSheet(
             isVisible = showAccountMenu,

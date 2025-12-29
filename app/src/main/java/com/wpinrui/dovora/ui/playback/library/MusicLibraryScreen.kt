@@ -25,6 +25,7 @@ import com.wpinrui.dovora.data.api.TokenStorage
 import com.wpinrui.dovora.data.download.DownloadManager
 import com.wpinrui.dovora.data.download.DownloadState
 import com.wpinrui.dovora.ui.auth.AccountSheet
+import com.wpinrui.dovora.ui.auth.RegisterDialog
 import com.wpinrui.dovora.ui.auth.SignInDialog
 import com.wpinrui.dovora.ui.auth.AuthViewModel
 import com.wpinrui.dovora.ui.playback.MusicPlaybackViewModel
@@ -57,12 +58,16 @@ fun MusicLibraryScreen(
 
     // Auth state
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
+    val showRegisterDialog by authViewModel.showRegisterDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
     val isSigningIn by authViewModel.isSigningIn.collectAsState()
+    val isRegistering by authViewModel.isRegistering.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
     val email by authViewModel.email.collectAsState()
     val password by authViewModel.password.collectAsState()
+    val confirmPassword by authViewModel.confirmPassword.collectAsState()
+    val inviteCode by authViewModel.inviteCode.collectAsState()
 
     // Track completed downloads count to trigger refresh
     val completedCount = activeDownloads.values.count { it.state is DownloadState.Completed }
@@ -145,6 +150,7 @@ fun MusicLibraryScreen(
         SignInDialog(
             onDismiss = { authViewModel.closeSignInDialog() },
             onLogin = { authViewModel.login() },
+            onSwitchToRegister = { authViewModel.switchToRegister() },
             email = email,
             onEmailChange = { authViewModel.updateEmail(it) },
             password = password,
@@ -153,7 +159,25 @@ fun MusicLibraryScreen(
             errorMessage = errorMessage
         )
     }
-    
+
+    if (showRegisterDialog) {
+        RegisterDialog(
+            onDismiss = { authViewModel.closeRegisterDialog() },
+            onRegister = { authViewModel.register() },
+            onSwitchToLogin = { authViewModel.switchToLogin() },
+            email = email,
+            onEmailChange = { authViewModel.updateEmail(it) },
+            password = password,
+            onPasswordChange = { authViewModel.updatePassword(it) },
+            confirmPassword = confirmPassword,
+            onConfirmPasswordChange = { authViewModel.updateConfirmPassword(it) },
+            inviteCode = inviteCode,
+            onInviteCodeChange = { authViewModel.updateInviteCode(it) },
+            isRegistering = isRegistering,
+            errorMessage = errorMessage
+        )
+    }
+
     // Account Sheet
     AccountSheet(
         isVisible = showAccountMenu,

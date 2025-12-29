@@ -1,14 +1,12 @@
 package com.wpinrui.dovora.ui.playback
 
 import android.app.Application
-import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
 import android.webkit.MimeTypeMap
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
-import androidx.palette.graphics.Palette
 import androidx.lifecycle.viewModelScope
 import com.wpinrui.dovora.data.api.LyricsService
 import com.wpinrui.dovora.data.api.LyricsStatus
@@ -17,6 +15,7 @@ import com.wpinrui.dovora.data.download.TrackMetadataStore
 import com.wpinrui.dovora.ui.playback.nowplaying.PlayerPage
 import com.wpinrui.dovora.ui.playback.nowplaying.RepeatMode
 import com.wpinrui.dovora.ui.playback.service.PlaybackServiceConnection
+import com.wpinrui.dovora.ui.theme.extractDominantColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -444,15 +443,10 @@ class MusicPlaybackViewModel(
                         // BUT: ignore for 500ms after manual queue update to prevent feedback loop
                         val timeSinceManualUpdate = System.currentTimeMillis() - lastManualQueueUpdateMs
                         val recentManualUpdate = timeSinceManualUpdate < 500
-                        
+
                         val updatedQueue = if (trackChanged && serviceQueue.isNotEmpty() && !recentManualUpdate) {
-                            Log.d("DRAG_DEBUG", "VM Observer: Track changed, syncing queue from service")
-                            Log.d("DRAG_DEBUG", "VM Observer: Service queue: ${serviceQueue.map { it.title }}")
                             serviceQueue
                         } else {
-                            if (recentManualUpdate) {
-                                Log.d("DRAG_DEBUG", "VM Observer: Ignoring service queue (${timeSinceManualUpdate}ms since manual update)")
-                            }
                             current.upNext
                         }
                         
@@ -514,56 +508,6 @@ class MusicPlaybackViewModel(
             }
             _dominantColor.value = color ?: Color(0xFF1A1A1A)
         }
-    }
-    
-    private fun extractDominantColor(artworkPath: String?): Color? {
-        if (artworkPath == null) return null
-        return try {
-            val file = File(artworkPath.replace('\\', '/'))
-            if (!file.exists()) return null
-            val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
-            val palette = Palette.from(bitmap).generate()
-            val swatch = palette.dominantSwatch
-                ?: palette.vibrantSwatch
-                ?: palette.mutedSwatch
-            swatch?.let { ensureDarkEnough(Color(it.rgb)) }
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    /**
-     * Ensures the color is dark enough for white text readability.
-     * If the color is too bright, it darkens it while preserving the hue.
-     */
-    private fun ensureDarkEnough(color: Color): Color {
-        val maxLuminance = 0.3f // Maximum allowed luminance for good white text contrast
-        
-        // Convert to HSL-like representation using Android's ColorUtils
-        val hsl = FloatArray(3)
-        androidx.core.graphics.ColorUtils.colorToHSL(
-            android.graphics.Color.argb(
-                (color.alpha * 255).toInt(),
-                (color.red * 255).toInt(),
-                (color.green * 255).toInt(),
-                (color.blue * 255).toInt()
-            ),
-            hsl
-        )
-        
-        // If luminance is too high, reduce it
-        if (hsl[2] > maxLuminance) {
-            hsl[2] = maxLuminance
-        }
-        
-        // Also reduce saturation slightly for very saturated bright colors
-        // to make them feel more premium/muted
-        if (hsl[1] > 0.7f && hsl[2] > 0.2f) {
-            hsl[1] = hsl[1] * 0.8f
-        }
-        
-        val darkened = androidx.core.graphics.ColorUtils.HSLToColor(hsl)
-        return Color(darkened)
     }
 }
 
@@ -647,7 +591,7 @@ private fun File.toMusicTrack(): MusicTrack {
         metadata.thumbnailPath?.takeIf { it.isNotBlank() }?.let { artworkPath = it }
     }
 
-    val track = MusicTrack(
+    return MusicTrack(
         id = absolutePath,
         title = title,
         artist = artist,
@@ -656,8 +600,6 @@ private fun File.toMusicTrack(): MusicTrack {
         addedTimestamp = lastModified(),
         artworkPath = artworkPath
     )
-    Log.d("MusicTrack", "Created track: $title, artworkPath: $artworkPath")
-    return track
 }
 
 private fun resolveExtension(context: Application, uri: Uri): String {

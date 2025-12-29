@@ -67,17 +67,14 @@ class MetadataService {
                 }
 
                 val body = response.body?.string() ?: throw IllegalStateException("Empty response")
-                android.util.Log.d("MetadataService", "parseMetadata response: $body")
                 val json = JSONObject(body)
 
-                val result = ParsedMetadata(
+                ParsedMetadata(
                     songTitle = json.optStringOrNull("song_title")?.trim(),
                     songTitleConfidence = json.optDouble("song_title_confidence", 0.0).toFloat(),
                     artist = json.optStringOrNull("artist")?.trim(),
                     artistConfidence = json.optDouble("artist_confidence", 0.0).toFloat()
                 )
-                android.util.Log.d("MetadataService", "Parsed metadata: title=${result.songTitle}, artist=${result.artist}")
-                result
             }
         }
     }

@@ -2,15 +2,14 @@ package com.wpinrui.dovora.ui
 
 import android.app.Application
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.palette.graphics.Palette
 import com.wpinrui.dovora.data.download.DownloadStorage
 import com.wpinrui.dovora.data.download.VideoMetadataStore
+import com.wpinrui.dovora.ui.theme.extractDominantColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -132,47 +131,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    private fun extractDominantColor(imagePath: String?): Color? {
-        if (imagePath == null) return null
-        return try {
-            val file = File(imagePath.replace('\\', '/'))
-            if (!file.exists()) return null
-            val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
-            val palette = Palette.from(bitmap).generate()
-            val swatch = palette.dominantSwatch
-                ?: palette.vibrantSwatch
-                ?: palette.mutedSwatch
-            swatch?.let { ensureDarkEnough(Color(it.rgb)) }
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    /**
-     * Ensures the color is dark enough for white text readability.
-     */
-    private fun ensureDarkEnough(color: Color): Color {
-        val maxLuminance = 0.3f
-        val hsl = FloatArray(3)
-        androidx.core.graphics.ColorUtils.colorToHSL(
-            android.graphics.Color.argb(
-                (color.alpha * 255).toInt(),
-                (color.red * 255).toInt(),
-                (color.green * 255).toInt(),
-                (color.blue * 255).toInt()
-            ),
-            hsl
-        )
-        if (hsl[2] > maxLuminance) {
-            hsl[2] = maxLuminance
-        }
-        if (hsl[1] > 0.7f && hsl[2] > 0.2f) {
-            hsl[1] = hsl[1] * 0.8f
-        }
-        val darkened = androidx.core.graphics.ColorUtils.HSLToColor(hsl)
-        return Color(darkened)
-    }
-    
     fun stopVideoPlayback() {
         _currentVideo.value = null
     }
@@ -266,7 +224,7 @@ private fun File.toVideoItem(): VideoItem {
         metadata.thumbnailPath?.takeIf { it.isNotBlank() }?.let { thumbnailPath = it }
     }
 
-    val video = VideoItem(
+    return VideoItem(
         id = absolutePath,
         title = title,
         durationMs = duration,
@@ -274,8 +232,6 @@ private fun File.toVideoItem(): VideoItem {
         addedTimestamp = lastModified(),
         thumbnailPath = thumbnailPath
     )
-    Log.d("VideoItem", "Created video: $title, thumbnailPath: $thumbnailPath")
-    return video
 }
 
 

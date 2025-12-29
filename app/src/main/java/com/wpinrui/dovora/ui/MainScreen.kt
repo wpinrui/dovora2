@@ -1,7 +1,6 @@
 package com.wpinrui.dovora.ui
 
 import android.Manifest
-import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -16,7 +15,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -33,11 +31,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -51,16 +47,13 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Videocam
@@ -115,7 +108,6 @@ import com.wpinrui.dovora.ui.auth.AuthViewModel
 import com.wpinrui.dovora.ui.auth.SignInDialog
 import com.wpinrui.dovora.ui.components.LibraryIconWithProgress
 import com.wpinrui.dovora.ui.playback.LyricsUiState
-import com.wpinrui.dovora.ui.playback.MusicPlaybackScreen
 import com.wpinrui.dovora.ui.playback.MusicPlaybackViewModel
 import com.wpinrui.dovora.ui.playback.MusicTrack
 import com.wpinrui.dovora.ui.playback.components.TrackArtwork
@@ -125,7 +117,6 @@ import com.wpinrui.dovora.ui.playback.nowplaying.NowPlayingDrawer
 import com.wpinrui.dovora.ui.playback.nowplaying.NowPlayingScreen
 import com.wpinrui.dovora.ui.playback.nowplaying.PlayerPage
 import com.wpinrui.dovora.ui.playback.nowplaying.RepeatMode
-import com.wpinrui.dovora.ui.playback.nowplaying.TopMiniPlayer
 import com.wpinrui.dovora.ui.download.ExistingTrack
 import com.wpinrui.dovora.ui.search.SearchScreen
 import com.wpinrui.dovora.ui.video.VideoLibraryScreen

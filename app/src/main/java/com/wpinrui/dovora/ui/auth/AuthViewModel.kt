@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.wpinrui.dovora.data.api.RetrofitProvider
 import com.wpinrui.dovora.data.api.TokenStorage
 import com.wpinrui.dovora.data.api.model.LoginRequest
+import com.wpinrui.dovora.data.api.model.RegisterRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,6 +57,13 @@ class AuthViewModel(
     private val _password = MutableStateFlow("")
     val password: StateFlow<String> = _password.asStateFlow()
 
+    // Register form state
+    private val _confirmPassword = MutableStateFlow("")
+    val confirmPassword: StateFlow<String> = _confirmPassword.asStateFlow()
+
+    private val _inviteCode = MutableStateFlow("")
+    val inviteCode: StateFlow<String> = _inviteCode.asStateFlow()
+
     // Settings (these work without Firebase)
     private val _aiPrefillEnabled = MutableStateFlow(prefs.getBoolean(KEY_AI_PREFILL, true))
     val aiPrefillEnabled: StateFlow<Boolean> = _aiPrefillEnabled.asStateFlow()
@@ -99,6 +107,12 @@ class AuthViewModel(
     private val _showSignInDialog = MutableStateFlow(false)
     val showSignInDialog: StateFlow<Boolean> = _showSignInDialog.asStateFlow()
 
+    private val _showRegisterDialog = MutableStateFlow(false)
+    val showRegisterDialog: StateFlow<Boolean> = _showRegisterDialog.asStateFlow()
+
+    private val _isRegistering = MutableStateFlow(false)
+    val isRegistering: StateFlow<Boolean> = _isRegistering.asStateFlow()
+
     private val _showAccountMenu = MutableStateFlow(false)
     val showAccountMenu: StateFlow<Boolean> = _showAccountMenu.asStateFlow()
 
@@ -112,6 +126,28 @@ class AuthViewModel(
 
     fun closeSignInDialog() {
         _showSignInDialog.value = false
+        _errorMessage.value = null
+    }
+
+    fun openRegisterDialog() {
+        _showRegisterDialog.value = true
+        _errorMessage.value = null
+    }
+
+    fun closeRegisterDialog() {
+        _showRegisterDialog.value = false
+        _errorMessage.value = null
+    }
+
+    fun switchToRegister() {
+        _showSignInDialog.value = false
+        _showRegisterDialog.value = true
+        _errorMessage.value = null
+    }
+
+    fun switchToLogin() {
+        _showRegisterDialog.value = false
+        _showSignInDialog.value = true
         _errorMessage.value = null
     }
 
@@ -133,6 +169,14 @@ class AuthViewModel(
 
     fun updatePassword(password: String) {
         _password.value = password
+    }
+
+    fun updateConfirmPassword(confirmPassword: String) {
+        _confirmPassword.value = confirmPassword
+    }
+
+    fun updateInviteCode(inviteCode: String) {
+        _inviteCode.value = inviteCode
     }
 
     /**
@@ -184,6 +228,91 @@ class AuthViewModel(
                 _errorMessage.value = "Network error. Please check your connection."
             } finally {
                 _isSigningIn.value = false
+            }
+        }
+    }
+
+    /**
+     * Register with email, password, and invite code via the Go backend.
+     * On success, automatically logs in the user.
+     */
+    fun register() {
+        val emailValue = _email.value.trim()
+        val passwordValue = _password.value
+        val confirmPasswordValue = _confirmPassword.value
+        val inviteCodeValue = _inviteCode.value.trim()
+
+        if (emailValue.isBlank()) {
+            _errorMessage.value = "Please enter your email"
+            return
+        }
+        if (passwordValue.isBlank()) {
+            _errorMessage.value = "Please enter a password"
+            return
+        }
+        if (passwordValue.length < 6) {
+            _errorMessage.value = "Password must be at least 6 characters"
+            return
+        }
+        if (passwordValue != confirmPasswordValue) {
+            _errorMessage.value = "Passwords do not match"
+            return
+        }
+        if (inviteCodeValue.isBlank()) {
+            _errorMessage.value = "Please enter an invite code"
+            return
+        }
+
+        viewModelScope.launch {
+            _isRegistering.value = true
+            _errorMessage.value = null
+
+            try {
+                val response = apiService.register(
+                    RegisterRequest(emailValue, passwordValue, inviteCodeValue)
+                )
+
+                if (response.isSuccessful) {
+                    Log.d(TAG, "Registration successful for $emailValue, auto-logging in...")
+
+                    // Auto-login after successful registration
+                    val loginResponse = apiService.login(LoginRequest(emailValue, passwordValue))
+                    if (loginResponse.isSuccessful) {
+                        val authResponse = loginResponse.body()
+                        if (authResponse != null) {
+                            tokenStorage.saveTokens(authResponse.accessToken, authResponse.refreshToken)
+                            _currentUser.value = User(email = emailValue)
+                            _showRegisterDialog.value = false
+                            _email.value = ""
+                            _password.value = ""
+                            _confirmPassword.value = ""
+                            _inviteCode.value = ""
+                            Log.d(TAG, "Auto-login successful for $emailValue")
+                        } else {
+                            _errorMessage.value = "Registration successful. Please sign in."
+                            _showRegisterDialog.value = false
+                            _showSignInDialog.value = true
+                        }
+                    } else {
+                        _errorMessage.value = "Registration successful. Please sign in."
+                        _showRegisterDialog.value = false
+                        _showSignInDialog.value = true
+                    }
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    _errorMessage.value = when (response.code()) {
+                        400 -> errorBody ?: "Invalid registration data"
+                        409 -> "Email already registered"
+                        403 -> "Invalid invite code"
+                        else -> errorBody ?: "Registration failed"
+                    }
+                    Log.w(TAG, "Registration failed: ${response.code()} - $errorBody")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Registration error", e)
+                _errorMessage.value = "Network error. Please check your connection."
+            } finally {
+                _isRegistering.value = false
             }
         }
     }

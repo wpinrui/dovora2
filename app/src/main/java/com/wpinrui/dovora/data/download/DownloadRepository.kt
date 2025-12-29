@@ -5,7 +5,7 @@ import android.util.Log
 import com.wpinrui.dovora.BuildConfig
 import com.wpinrui.dovora.data.api.AuthRepository
 import com.wpinrui.dovora.data.api.DovoraApiService
-import com.wpinrui.dovora.data.api.TokenStorage
+import com.wpinrui.dovora.data.api.TokenProvider
 import com.wpinrui.dovora.data.api.model.DownloadRequest
 import com.wpinrui.dovora.data.api.model.DownloadResponse
 import com.wpinrui.dovora.data.model.SearchResult
@@ -88,7 +88,8 @@ class DownloadRepository(
     private val api: DovoraApiService
         get() = authRepository.getAuthenticatedApi()
 
-    private val tokenStorage = TokenStorage(context)
+    private val tokenProvider: TokenProvider
+        get() = authRepository.getTokenProvider()
 
     // Separate OkHttpClient for file downloads with longer timeouts
     private val downloadClient = OkHttpClient.Builder()
@@ -206,6 +207,11 @@ class DownloadRepository(
             }
             .onFailure { error ->
                 Log.e(TAG, "File transfer failed", error)
+                // Clean up partial file on failure
+                if (outputFile.exists()) {
+                    outputFile.delete()
+                    Log.d(TAG, "Deleted partial file: ${outputFile.absolutePath}")
+                }
                 trySend(DownloadProgress(-1, "Error: ${error.message ?: "Transfer failed"}"))
             }
 
@@ -276,6 +282,11 @@ class DownloadRepository(
             }
             .onFailure { error ->
                 Log.e(TAG, "File transfer failed", error)
+                // Clean up partial file on failure
+                if (outputFile.exists()) {
+                    outputFile.delete()
+                    Log.d(TAG, "Deleted partial file: ${outputFile.absolutePath}")
+                }
                 trySend(DownloadProgress(-1, "Error: ${error.message ?: "Transfer failed"}"))
             }
 
@@ -317,7 +328,7 @@ class DownloadRepository(
         val url = "$baseUrl/files/$fileId"
 
         // Get auth token
-        val accessToken = tokenStorage.getAccessToken()
+        val accessToken = tokenProvider.getAccessToken()
             ?: throw IllegalStateException("Not authenticated")
 
         val request = Request.Builder()

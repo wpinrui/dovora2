@@ -214,8 +214,7 @@ class DownloadRepository(
 
     suspend fun downloadVideo(
         result: SearchResult,
-        preferredTitle: String? = null,
-        maxHeight: Int? = null
+        preferredTitle: String? = null
     ): Flow<DownloadProgress> = channelFlow {
         val config = VIDEO_CONFIG
         val outputDir = DownloadStorage.videoDirectory(context)

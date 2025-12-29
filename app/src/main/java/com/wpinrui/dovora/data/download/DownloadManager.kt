@@ -141,8 +141,7 @@ class DownloadManager private constructor(
         videoId: String,
         videoTitle: String,
         thumbnailUrl: String?,
-        preferredTitle: String?,
-        maxHeight: Int? = null
+        preferredTitle: String?
     ): String {
         val downloadId = UUID.randomUUID().toString()
         val searchResult = com.wpinrui.dovora.data.model.SearchResult(
@@ -175,8 +174,7 @@ class DownloadManager private constructor(
         scope.launch {
             downloadRepository.downloadVideo(
                 result = searchResult,
-                preferredTitle = preferredTitle,
-                maxHeight = maxHeight
+                preferredTitle = preferredTitle
             ).collect { progress ->
                 updateDownloadProgress(downloadId, progress)
             }

@@ -51,5 +51,3 @@ class DovoraApp : Application() {
         Log.i("DovoraApp", "Crash log saved to ${panicFile.absolutePath}")
     }
 }
-
-

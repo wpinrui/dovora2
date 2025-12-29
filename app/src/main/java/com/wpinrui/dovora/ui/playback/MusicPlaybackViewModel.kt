@@ -674,4 +674,3 @@ private fun resolveExtension(context: Application, uri: Uri): String {
 
 private fun sanitizeFileName(value: String): String =
     value.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(64)
-

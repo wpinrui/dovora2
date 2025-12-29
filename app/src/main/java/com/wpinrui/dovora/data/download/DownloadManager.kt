@@ -285,4 +285,3 @@ sealed class DownloadState {
     data object Completed : DownloadState()
     data class Failed(val message: String) : DownloadState()
 }
-

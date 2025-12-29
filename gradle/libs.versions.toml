@@ -18,6 +18,7 @@ coil = "2.7.0"
 media3 = "1.4.1"
 androidxMedia = "1.7.0"
 composePager = "0.32.0"
+securityCrypto = "1.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,6 +50,7 @@ media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "medi
 androidx-media = { group = "androidx.media", name = "media", version.ref = "androidxMedia" }
 compose-foundation-pager = { group = "com.google.accompanist", name = "accompanist-pager", version.ref = "composePager" }
 compose-foundation-pager-indicators = { group = "com.google.accompanist", name = "accompanist-pager-indicators", version.ref = "composePager" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

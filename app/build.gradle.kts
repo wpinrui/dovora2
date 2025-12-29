@@ -132,7 +132,10 @@ dependencies {
     
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
-    
+
+    // Security (Encrypted SharedPreferences)
+    implementation(libs.androidx.security.crypto)
+
     // Image Loading
     implementation(libs.coil.compose)
 

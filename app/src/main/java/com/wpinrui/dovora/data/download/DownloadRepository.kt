@@ -54,10 +54,12 @@ class DownloadRepository(
 
         // Progress allocation:
         // 0-50%: Backend processing (yt-dlp download + conversion)
-        // 50-100%: File transfer from backend to device
+        // 50-98%: File transfer from backend to device
+        // 98-100%: Metadata save and finalization
         private const val BACKEND_PROGRESS_MAX = 50
         private const val TRANSFER_PROGRESS_START = 50
-        private const val TRANSFER_PROGRESS_END = 100
+        private const val TRANSFER_PROGRESS_END = 98
+        private const val METADATA_SAVE_PROGRESS = 98
         private const val PROGRESS_MAX_RATIO = 0.95f
 
         // Backend processing timeouts
@@ -105,6 +107,12 @@ class DownloadRepository(
         val sanitized = sanitizeFileName(title)
         return "${sanitized}_${videoId}.$extension"
     }
+
+    /**
+     * Maps raw transfer progress (0-100) to the transfer phase range.
+     */
+    private fun mapTransferProgress(rawProgress: Int): Int =
+        TRANSFER_PROGRESS_START + (rawProgress * (TRANSFER_PROGRESS_END - TRANSFER_PROGRESS_START) / 100)
 
     /**
      * Launches a coroutine that animates progress during backend processing.
@@ -185,15 +193,13 @@ class DownloadRepository(
 
         val transferResult = runCatching {
             downloadFileFromBackend(downloadResponse.id, outputFile) { progress ->
-                val mappedProgress = TRANSFER_PROGRESS_START +
-                        (progress * (TRANSFER_PROGRESS_END - TRANSFER_PROGRESS_START) / 100)
-                trySend(DownloadProgress(mappedProgress, "Transferring..."))
+                trySend(DownloadProgress(mapTransferProgress(progress), "Transferring..."))
             }
         }
 
         transferResult
             .onSuccess {
-                trySend(DownloadProgress(98, "Saving metadata..."))
+                trySend(DownloadProgress(METADATA_SAVE_PROGRESS, "Saving metadata..."))
                 val youtubeUrl = buildYoutubeUrl(result.id)
                 TrackMetadataStore.writeMetadata(
                     audioFile = outputFile,
@@ -261,15 +267,13 @@ class DownloadRepository(
 
         val transferResult = runCatching {
             downloadFileFromBackend(downloadResponse.id, outputFile) { progress ->
-                val mappedProgress = TRANSFER_PROGRESS_START +
-                        (progress * (TRANSFER_PROGRESS_END - TRANSFER_PROGRESS_START) / 100)
-                trySend(DownloadProgress(mappedProgress, "Transferring..."))
+                trySend(DownloadProgress(mapTransferProgress(progress), "Transferring..."))
             }
         }
 
         transferResult
             .onSuccess {
-                trySend(DownloadProgress(98, "Saving metadata..."))
+                trySend(DownloadProgress(METADATA_SAVE_PROGRESS, "Saving metadata..."))
                 val youtubeUrl = buildYoutubeUrl(result.id)
                 VideoMetadataStore.writeMetadata(
                     videoFile = outputFile,

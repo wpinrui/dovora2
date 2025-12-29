@@ -26,6 +26,3 @@ data class UpdatePlaylistRequest(
     val trackIds: List<String>? = null
 )
 
-data class PlaylistsResponse(
-    val playlists: List<Playlist>
-)

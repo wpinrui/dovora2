@@ -32,14 +32,6 @@ data class Video(
     val createdAt: String?
 )
 
-data class MusicLibraryResponse(
-    val tracks: List<MusicTrack>
-)
-
-data class VideoLibraryResponse(
-    val videos: List<Video>
-)
-
 data class UpdateTrackRequest(
     val title: String?,
     val artist: String?

@@ -5,10 +5,12 @@ import com.wpinrui.dovora.data.api.model.CreatePlaylistRequest
 import com.wpinrui.dovora.data.api.model.DownloadRequest
 import com.wpinrui.dovora.data.api.model.DownloadResponse
 import com.wpinrui.dovora.data.api.model.LoginRequest
+import com.wpinrui.dovora.data.api.model.LyricsResponse
 import com.wpinrui.dovora.data.api.model.MusicTrack
 import com.wpinrui.dovora.data.api.model.Playlist
 import com.wpinrui.dovora.data.api.model.RegisterRequest
 import com.wpinrui.dovora.data.api.model.RefreshRequest
+import com.wpinrui.dovora.data.api.model.SearchResult
 import com.wpinrui.dovora.data.api.model.UpdatePlaylistRequest
 import com.wpinrui.dovora.data.api.model.UpdateTrackRequest
 import com.wpinrui.dovora.data.api.model.Video
@@ -21,6 +23,7 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.Streaming
 
 /**
@@ -39,6 +42,11 @@ interface DovoraApiService {
 
     @POST("auth/refresh")
     suspend fun refreshToken(@Body request: RefreshRequest): Response<AuthResponse>
+
+    // ==================== Search ====================
+
+    @GET("search")
+    suspend fun search(@Query("q") query: String): Response<List<SearchResult>>
 
     // ==================== Music Library ====================
 
@@ -84,4 +92,12 @@ interface DovoraApiService {
 
     @DELETE("playlists/{id}")
     suspend fun deletePlaylist(@Path("id") playlistId: String): Response<Unit>
+
+    // ==================== Lyrics ====================
+
+    @GET("lyrics")
+    suspend fun getLyrics(
+        @Query("title") title: String,
+        @Query("artist") artist: String
+    ): Response<LyricsResponse>
 }

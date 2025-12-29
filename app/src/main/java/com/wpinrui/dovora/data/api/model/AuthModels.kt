@@ -32,9 +32,3 @@ data class AuthResponse(
     val expiresIn: Long? = null
 )
 
-data class UserResponse(
-    val id: String,
-    val email: String,
-    @SerializedName("created_at")
-    val createdAt: String? = null
-)

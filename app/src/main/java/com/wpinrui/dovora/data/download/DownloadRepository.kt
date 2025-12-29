@@ -88,8 +88,7 @@ class DownloadRepository(
     private val api: DovoraApiService
         get() = authRepository.getAuthenticatedApi()
 
-    private val tokenStorage: TokenStorage
-        get() = TokenStorage(context)
+    private val tokenStorage = TokenStorage(context)
 
     // Separate OkHttpClient for file downloads with longer timeouts
     private val downloadClient = OkHttpClient.Builder()

@@ -616,8 +616,7 @@ fun MainScreen() {
                             existingTracks = existingTracks,
                             existingVideos = existingVideoTitles,
                             aiPrefillEnabled = aiPrefillEnabled,
-                            defaultDownloadType = defaultDownloadType,
-                            maxVideoQualityHeight = maxVideoQuality.height
+                            defaultDownloadType = defaultDownloadType
                         )
                     }
                 }

@@ -2,10 +2,12 @@ package com.wpinrui.dovora.data.download
 
 import android.content.Context
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.JsonParseException
 import com.wpinrui.dovora.BuildConfig
-import com.wpinrui.dovora.data.api.MetadataService
+import com.wpinrui.dovora.data.api.AuthRepository
+import com.wpinrui.dovora.data.api.DovoraApiService
+import com.wpinrui.dovora.data.api.TokenProvider
+import com.wpinrui.dovora.data.api.model.DownloadRequest
+import com.wpinrui.dovora.data.api.model.DownloadResponse
 import com.wpinrui.dovora.data.model.SearchResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,12 +16,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 enum class MediaKind {
@@ -31,95 +32,87 @@ enum class MediaKind {
  * Encapsulates the differences between audio and video downloads.
  */
 private data class MediaDownloadConfig(
-    val kind: String,
+    val type: String,
     val processingTimeoutMs: Long,
     val processingMessage: String,
     val transferMessage: String,
-    val thumbnailMessage: String
+    val fileExtension: String
 )
 
+/**
+ * Repository for downloading media from the Dovora backend.
+ * Uses JWT authentication via AuthRepository.
+ */
 class DownloadRepository(
     private val context: Context
 ) {
 
     companion object {
-        private const val KIND_AUDIO = "audio"
-        private const val KIND_VIDEO = "video"
-        private const val API_KEY_HEADER = "X-API-Key"
+        private const val TAG = "DownloadRepository"
+        private const val TYPE_AUDIO = "audio"
+        private const val TYPE_VIDEO = "video"
 
         // Progress allocation:
         // 0-50%: Backend processing (yt-dlp download + conversion)
-        // 50-95%: File transfer from backend to device
-        // 95-100%: Thumbnail download and finalization
+        // 50-98%: File transfer from backend to device
+        // 98-100%: Metadata save and finalization
         private const val BACKEND_PROGRESS_MAX = 50
         private const val TRANSFER_PROGRESS_START = 50
-        private const val TRANSFER_PROGRESS_END = 95
+        private const val TRANSFER_PROGRESS_END = 98
+        private const val METADATA_SAVE_PROGRESS = 98
         private const val PROGRESS_MAX_RATIO = 0.95f
 
         // Backend processing timeouts
         private const val AUDIO_PROCESSING_TIMEOUT_MS = 60_000L
-        private const val VIDEO_PROCESSING_TIMEOUT_MS = 90_000L
+        private const val VIDEO_PROCESSING_TIMEOUT_MS = 120_000L
         private const val PROGRESS_UPDATE_INTERVAL_MS = 500L
 
         private val AUDIO_CONFIG = MediaDownloadConfig(
-            kind = KIND_AUDIO,
+            type = TYPE_AUDIO,
             processingTimeoutMs = AUDIO_PROCESSING_TIMEOUT_MS,
             processingMessage = "Processing on server...",
             transferMessage = "Transferring to device...",
-            thumbnailMessage = "Getting artwork..."
+            fileExtension = "m4a"
         )
 
         private val VIDEO_CONFIG = MediaDownloadConfig(
-            kind = KIND_VIDEO,
+            type = TYPE_VIDEO,
             processingTimeoutMs = VIDEO_PROCESSING_TIMEOUT_MS,
             processingMessage = "Processing video on server...",
             transferMessage = "Transferring video to device...",
-            thumbnailMessage = "Getting thumbnail..."
+            fileExtension = "mp4"
         )
     }
 
-    private val backendBaseUrl = BuildConfig.BACKEND_BASE_URL.trimEnd('/')
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(5, java.util.concurrent.TimeUnit.MINUTES) // Increased for yt-dlp processing
-        .writeTimeout(2, java.util.concurrent.TimeUnit.MINUTES)
+    private val authRepository: AuthRepository
+        get() = AuthRepository.getInstance(context)
+
+    private val api: DovoraApiService
+        get() = authRepository.getAuthenticatedApi()
+
+    private val tokenProvider: TokenProvider
+        get() = authRepository.getTokenProvider()
+
+    // Separate OkHttpClient for file downloads with longer timeouts
+    private val downloadClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.MINUTES)
+        .writeTimeout(2, TimeUnit.MINUTES)
         .build()
-    private val gson = Gson()
-    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     /**
      * Creates a unique filename by appending video ID to prevent overwrites.
      */
-    private fun createUniqueFileName(baseFileName: String, videoId: String): String {
-        val sanitized = sanitizeFileName(baseFileName)
-        val extension = sanitized.substringAfterLast('.', "")
-        val nameWithoutExt = sanitized.substringBeforeLast('.', sanitized)
-        return if (extension.isNotEmpty()) {
-            "${nameWithoutExt}_${videoId}.$extension"
-        } else {
-            "${sanitized}_${videoId}"
-        }
+    private fun createUniqueFileName(title: String, videoId: String, extension: String): String {
+        val sanitized = sanitizeFileName(title)
+        return "${sanitized}_${videoId}.$extension"
     }
 
     /**
-     * Downloads thumbnail from backend and returns the local path.
+     * Maps raw transfer progress (0-100) to the transfer phase range.
      */
-    private suspend fun downloadThumbnail(
-        thumbnailPath: String,
-        thumbnailDir: File
-    ): String? {
-        return runCatching {
-            val normalizedPath = thumbnailPath.replace('\\', '/')
-            val fileName = normalizedPath.substringAfterLast('/')
-            val thumbnailFile = File(thumbnailDir, fileName)
-            Log.d("DownloadRepository", "Downloading thumbnail to: ${thumbnailFile.absolutePath}")
-            downloadFileFromBackend(thumbnailPath, thumbnailFile) { }
-            Log.d("DownloadRepository", "Thumbnail downloaded successfully: ${thumbnailFile.length()} bytes")
-            thumbnailFile.absolutePath
-        }.onFailure { error ->
-            Log.e("DownloadRepository", "Failed to download thumbnail: ${error.message}")
-        }.getOrNull()
-    }
+    private fun mapTransferProgress(rawProgress: Int): Int =
+        TRANSFER_PROGRESS_START + (rawProgress * (TRANSFER_PROGRESS_END - TRANSFER_PROGRESS_START) / 100)
 
     /**
      * Launches a coroutine that animates progress during backend processing.
@@ -146,21 +139,6 @@ class DownloadRepository(
         }
     }
 
-    /**
-     * Transfers a file from backend with progress reporting.
-     */
-    private suspend fun transferFileWithProgress(
-        relativePath: String,
-        outputFile: File,
-        onProgress: (Int) -> Unit
-    ): Result<Unit> = runCatching {
-        downloadFileFromBackend(relativePath, outputFile) { progress ->
-            val mappedProgress = TRANSFER_PROGRESS_START +
-                    (progress * (TRANSFER_PROGRESS_END - TRANSFER_PROGRESS_START) / 100)
-            onProgress(mappedProgress)
-        }
-    }
-
     suspend fun downloadAudio(
         result: SearchResult,
         preferredTitle: String? = null,
@@ -168,17 +146,6 @@ class DownloadRepository(
     ): Flow<DownloadProgress> = channelFlow {
         val config = AUDIO_CONFIG
         val outputDir = DownloadStorage.audioDirectory(context)
-        val thumbnailDir = DownloadStorage.thumbnailDirectory(context)
-        val titleOverride = preferredTitle?.trim()?.takeIf { it.isNotBlank() }
-            ?: result.title.ifBlank { result.id }
-        val compositeName = buildString {
-            preferredArtist?.takeIf { it.isNotBlank() }?.let {
-                append(it.trim())
-                append(" - ")
-            }
-            append(titleOverride)
-        }.ifBlank { result.id }
-        val safeName = sanitizeFileName(compositeName)
 
         trySend(DownloadProgress(0, "Preparing..."))
 
@@ -187,136 +154,202 @@ class DownloadRepository(
             trySend(DownloadProgress(progress, message))
         }
 
-        val response = runCatching { requestBackendDownload(result, config.kind, safeName) }
+        // Step 1: Request download from backend
+        val downloadResult = runCatching {
+            requestBackendDownload(result.id, config.type)
+        }
         progressJob.cancel()
 
-        if (response.isFailure) {
-            trySend(DownloadProgress(-1, "Error: ${response.exceptionOrNull()?.message}"))
+        if (downloadResult.isFailure) {
+            val error = downloadResult.exceptionOrNull()
+            Log.e(TAG, "Download request failed", error)
+            trySend(DownloadProgress(-1, "Error: ${error?.message ?: "Unknown error"}"))
             close()
             return@channelFlow
         }
 
-        val downloadInfo = response.getOrThrow()
-        val uniqueFileName = createUniqueFileName(downloadInfo.fileName, result.id)
-        val outputFile = File(outputDir, uniqueFileName)
+        val downloadResponse = downloadResult.getOrThrow()
+        Log.d(TAG, "Download response: id=${downloadResponse.id}, title=${downloadResponse.title}")
 
+        // Determine the display title/artist
+        val displayTitle = preferredTitle?.trim()?.takeIf { it.isNotBlank() }
+            ?: downloadResponse.title.ifBlank { result.id }
+        val displayArtist = preferredArtist?.trim()?.takeIf { it.isNotBlank() }
+            ?: downloadResponse.artist
+
+        // Create output file with unique name
+        val compositeName = buildString {
+            displayArtist?.let {
+                append(it)
+                append(" - ")
+            }
+            append(displayTitle)
+        }.ifBlank { result.id }
+
+        val outputFile = File(outputDir, createUniqueFileName(compositeName, result.id, config.fileExtension))
+
+        // Step 2: Download the file from backend
         trySend(DownloadProgress(TRANSFER_PROGRESS_START, config.transferMessage))
-        val transferResult = transferFileWithProgress(downloadInfo.relativePath, outputFile) { progress ->
-            trySend(DownloadProgress(progress, "Transferring..."))
-        }
 
-        // Download thumbnail if available
-        var thumbnailPath: String? = null
-        if (transferResult.isSuccess && downloadInfo.thumbnailPath != null) {
-            trySend(DownloadProgress(96, config.thumbnailMessage))
-            thumbnailPath = downloadThumbnail(downloadInfo.thumbnailPath, thumbnailDir)
+        val transferResult = runCatching {
+            downloadFileFromBackend(downloadResponse.id, outputFile) { progress ->
+                trySend(DownloadProgress(mapTransferProgress(progress), "Transferring..."))
+            }
         }
 
         transferResult
             .onSuccess {
-                trySend(DownloadProgress(98, "Saving metadata..."))
+                trySend(DownloadProgress(METADATA_SAVE_PROGRESS, "Saving metadata..."))
                 val youtubeUrl = buildYoutubeUrl(result.id)
                 TrackMetadataStore.writeMetadata(
                     audioFile = outputFile,
-                    titleOverride = titleOverride,
-                    artistOverride = preferredArtist,
-                    thumbnailPath = thumbnailPath,
+                    titleOverride = displayTitle,
+                    artistOverride = displayArtist,
+                    thumbnailPath = downloadResponse.thumbnailUrl, // Store URL for display
                     youtubeUrl = youtubeUrl
                 )
-                submitMetadataIfProvided(youtubeUrl, preferredTitle, preferredArtist)
+                Log.d(TAG, "Audio download complete: ${outputFile.absolutePath}")
                 trySend(DownloadProgress(100, "Complete"))
             }
-            .onFailure { trySend(DownloadProgress(-1, "Error: ${it.message ?: "Unknown error"}")) }
+            .onFailure { error ->
+                Log.e(TAG, "File transfer failed", error)
+                // Clean up partial file on failure
+                if (outputFile.exists()) {
+                    outputFile.delete()
+                    Log.d(TAG, "Deleted partial file: ${outputFile.absolutePath}")
+                }
+                trySend(DownloadProgress(-1, "Error: ${error.message ?: "Transfer failed"}"))
+            }
+
+        close()
+    }
+
+    suspend fun downloadVideo(
+        result: SearchResult,
+        preferredTitle: String? = null
+    ): Flow<DownloadProgress> = channelFlow {
+        val config = VIDEO_CONFIG
+        val outputDir = DownloadStorage.videoDirectory(context)
+
+        trySend(DownloadProgress(0, "Preparing..."))
+
+        // Animate progress during backend processing
+        val progressJob = launchProgressAnimation(config) { progress, message ->
+            trySend(DownloadProgress(progress, message))
+        }
+
+        // Step 1: Request download from backend
+        val downloadResult = runCatching {
+            requestBackendDownload(result.id, config.type)
+        }
+        progressJob.cancel()
+
+        if (downloadResult.isFailure) {
+            val error = downloadResult.exceptionOrNull()
+            Log.e(TAG, "Download request failed", error)
+            trySend(DownloadProgress(-1, "Error: ${error?.message ?: "Unknown error"}"))
+            close()
+            return@channelFlow
+        }
+
+        val downloadResponse = downloadResult.getOrThrow()
+        Log.d(TAG, "Download response: id=${downloadResponse.id}, title=${downloadResponse.title}")
+
+        // Determine the display title
+        val displayTitle = preferredTitle?.trim()?.takeIf { it.isNotBlank() }
+            ?: downloadResponse.title.ifBlank { result.id }
+
+        // Create output file with unique name
+        val outputFile = File(outputDir, createUniqueFileName(displayTitle, result.id, config.fileExtension))
+
+        // Step 2: Download the file from backend
+        trySend(DownloadProgress(TRANSFER_PROGRESS_START, config.transferMessage))
+
+        val transferResult = runCatching {
+            downloadFileFromBackend(downloadResponse.id, outputFile) { progress ->
+                trySend(DownloadProgress(mapTransferProgress(progress), "Transferring..."))
+            }
+        }
+
+        transferResult
+            .onSuccess {
+                trySend(DownloadProgress(METADATA_SAVE_PROGRESS, "Saving metadata..."))
+                val youtubeUrl = buildYoutubeUrl(result.id)
+                VideoMetadataStore.writeMetadata(
+                    videoFile = outputFile,
+                    titleOverride = displayTitle,
+                    thumbnailPath = downloadResponse.thumbnailUrl, // Store URL for display
+                    youtubeUrl = youtubeUrl
+                )
+                Log.d(TAG, "Video download complete: ${outputFile.absolutePath}")
+                trySend(DownloadProgress(100, "Complete"))
+            }
+            .onFailure { error ->
+                Log.e(TAG, "File transfer failed", error)
+                // Clean up partial file on failure
+                if (outputFile.exists()) {
+                    outputFile.delete()
+                    Log.d(TAG, "Deleted partial file: ${outputFile.absolutePath}")
+                }
+                trySend(DownloadProgress(-1, "Error: ${error.message ?: "Transfer failed"}"))
+            }
 
         close()
     }
 
     /**
-     * Submits user's metadata choice to improve future suggestions.
+     * Request the backend to download and process a video.
+     * Returns the track/video ID to use for file download.
      */
-    private suspend fun submitMetadataIfProvided(
-        youtubeUrl: String,
-        preferredTitle: String?,
-        preferredArtist: String?
-    ) {
-        val shouldSubmit = (preferredTitle != null && preferredTitle.isNotBlank()) ||
-                (preferredArtist != null && preferredArtist.isNotBlank())
-        if (shouldSubmit) {
-            Log.d("DownloadRepository", "Submitting metadata: url=$youtubeUrl, title=$preferredTitle, artist=$preferredArtist")
-            MetadataService.getInstance().submitMetadata(
-                youtubeUrl = youtubeUrl,
-                title = preferredTitle?.takeIf { it.isNotBlank() },
-                artist = preferredArtist?.takeIf { it.isNotBlank() }
-            ).onSuccess {
-                Log.d("DownloadRepository", "Metadata submitted successfully")
-            }.onFailure { error ->
-                Log.e("DownloadRepository", "Failed to submit metadata: ${error.message}", error)
-            }
-        }
-    }
-
     private suspend fun requestBackendDownload(
-        result: SearchResult,
-        kind: String,
-        safeName: String,
-        maxHeight: Int? = null
-    ): BackendDownloadInfo = withContext(Dispatchers.IO) {
-        val requestBody = BackendDownloadRequest(
-            url = buildYoutubeUrl(result.id),
-            kind = kind,
-            filename = safeName,
-            thumbnail_url = result.thumbnailUrl,
-            max_height = maxHeight
-        )
-        val body = gson.toJson(requestBody).toRequestBody(jsonMediaType)
-        val request = Request.Builder()
-            .url(buildBackendUrl("/download"))
-            .post(body)
-            .addHeader(API_KEY_HEADER, BuildConfig.BACKEND_API_KEY)
-            .build()
+        videoId: String,
+        type: String
+    ): DownloadResponse {
+        val request = DownloadRequest(videoId = videoId, type = type)
+        Log.d(TAG, "Requesting download: videoId=$videoId, type=$type")
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw IllegalStateException("Backend error: ${response.code}")
-            }
-            val payload = response.body?.string() ?: throw IllegalStateException("Empty response")
-            val parsed = try {
-                gson.fromJson(payload, BackendDownloadResponse::class.java)
-            } catch (e: JsonParseException) {
-                throw IllegalStateException("Failed to parse backend response", e)
-            }
+        val response = api.requestDownload(request)
 
-            if (parsed?.status != "ok" || parsed.file.isNullOrBlank()) {
-                throw IllegalStateException("Backend returned invalid payload")
-            }
-
-            val fileName = parsed.file.substringAfterLast('/').ifBlank { parsed.file }
-            BackendDownloadInfo(
-                relativePath = parsed.file,
-                fileName = fileName,
-                thumbnailPath = parsed.thumbnail
-            )
+        if (!response.isSuccessful) {
+            val errorBody = response.errorBody()?.string()
+            Log.e(TAG, "Download request failed: ${response.code()} - $errorBody")
+            throw IllegalStateException("Download failed: ${response.code()}")
         }
+
+        return response.body() ?: throw IllegalStateException("Empty response from server")
     }
 
+    /**
+     * Download a file from the backend using the file ID.
+     * Uses a separate OkHttpClient with JWT auth header.
+     */
     private suspend fun downloadFileFromBackend(
-        relativePath: String,
+        fileId: String,
         targetFile: File,
         onProgress: (Int) -> Unit
     ) = withContext(Dispatchers.IO) {
-        val url = buildBackendUrl("/files/${relativePath.trimStart('/')}")
+        val baseUrl = BuildConfig.BACKEND_BASE_URL.trimEnd('/')
+        val url = "$baseUrl/files/$fileId"
+
+        // Get auth token
+        val accessToken = tokenProvider.getAccessToken()
+            ?: throw IllegalStateException("Not authenticated")
+
         val request = Request.Builder()
             .url(url)
-            .addHeader(API_KEY_HEADER, BuildConfig.BACKEND_API_KEY)
+            .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
-        client.newCall(request).execute().use { response ->
+        Log.d(TAG, "Downloading file from: $url")
+
+        downloadClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                throw IllegalStateException("Failed to fetch file: ${response.code}")
+                throw IllegalStateException("Failed to download file: ${response.code}")
             }
 
             val body = response.body ?: throw IllegalStateException("Empty response body")
             val totalBytes = body.contentLength()
+            Log.d(TAG, "File size: $totalBytes bytes")
 
             body.byteStream().use { input ->
                 FileOutputStream(targetFile).use { output ->
@@ -334,103 +367,18 @@ class DownloadRepository(
                     }
                 }
             }
+
+            Log.d(TAG, "File downloaded: ${targetFile.absolutePath}, size=${targetFile.length()}")
         }
-    }
-
-    suspend fun downloadVideo(
-        result: SearchResult,
-        preferredTitle: String? = null,
-        maxHeight: Int? = null
-    ): Flow<DownloadProgress> = channelFlow {
-        val config = VIDEO_CONFIG
-        val outputDir = DownloadStorage.videoDirectory(context)
-        val thumbnailDir = DownloadStorage.thumbnailDirectory(context)
-        val titleOverride = preferredTitle?.trim()?.takeIf { it.isNotBlank() }
-            ?: result.title.ifBlank { result.id }
-        val safeName = sanitizeFileName(titleOverride)
-
-        trySend(DownloadProgress(0, "Preparing..."))
-
-        // Animate progress during backend processing
-        val progressJob = launchProgressAnimation(config) { progress, message ->
-            trySend(DownloadProgress(progress, message))
-        }
-
-        val response = runCatching { requestBackendDownload(result, config.kind, safeName, maxHeight) }
-        progressJob.cancel()
-
-        if (response.isFailure) {
-            trySend(DownloadProgress(-1, "Error: ${response.exceptionOrNull()?.message}"))
-            close()
-            return@channelFlow
-        }
-
-        val downloadInfo = response.getOrThrow()
-        val uniqueFileName = createUniqueFileName(downloadInfo.fileName, result.id)
-        val outputFile = File(outputDir, uniqueFileName)
-
-        trySend(DownloadProgress(TRANSFER_PROGRESS_START, config.transferMessage))
-        val transferResult = transferFileWithProgress(downloadInfo.relativePath, outputFile) { progress ->
-            trySend(DownloadProgress(progress, "Transferring..."))
-        }
-
-        // Download thumbnail if available
-        var thumbnailPath: String? = null
-        if (transferResult.isSuccess && downloadInfo.thumbnailPath != null) {
-            trySend(DownloadProgress(96, config.thumbnailMessage))
-            thumbnailPath = downloadThumbnail(downloadInfo.thumbnailPath, thumbnailDir)
-        }
-
-        transferResult
-            .onSuccess {
-                trySend(DownloadProgress(98, "Saving metadata..."))
-                val youtubeUrl = buildYoutubeUrl(result.id)
-                VideoMetadataStore.writeMetadata(
-                    videoFile = outputFile,
-                    titleOverride = titleOverride,
-                    thumbnailPath = thumbnailPath,
-                    youtubeUrl = youtubeUrl
-                )
-                trySend(DownloadProgress(100, "Complete"))
-            }
-            .onFailure { trySend(DownloadProgress(-1, "Error: ${it.message ?: "Unknown error"}")) }
-
-        close()
     }
 
     private fun sanitizeFileName(fileName: String): String =
         fileName.replace(Regex("[<>:\"/\\\\|?*]"), "_").take(200)
 
     private fun buildYoutubeUrl(videoId: String) = "https://www.youtube.com/watch?v=$videoId"
-
-    private fun buildBackendUrl(path: String): String =
-        backendBaseUrl + path
-
 }
 
 data class DownloadProgress(
     val progress: Int, // 0-100, or -1 for error
     val message: String
-)
-
-private data class BackendDownloadRequest(
-    val url: String,
-    val kind: String,
-    val filename: String,
-    val thumbnail_url: String? = null,
-    val max_height: Int? = null
-)
-
-private data class BackendDownloadResponse(
-    val status: String?,
-    val file: String?,
-    val title: String?,
-    val size: Long?,
-    val thumbnail: String? = null
-)
-
-private data class BackendDownloadInfo(
-    val relativePath: String,
-    val fileName: String,
-    val thumbnailPath: String? = null
 )

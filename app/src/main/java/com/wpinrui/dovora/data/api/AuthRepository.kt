@@ -207,4 +207,10 @@ class AuthRepository private constructor(
             else -> null
         }
     }
+
+    /**
+     * Get the token provider for direct access to auth tokens.
+     * Use this for operations that need raw token access (e.g., OkHttpClient calls).
+     */
+    fun getTokenProvider(): TokenProvider = tokenStorage
 }

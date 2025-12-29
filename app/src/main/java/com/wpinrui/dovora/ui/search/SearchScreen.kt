@@ -53,8 +53,7 @@ fun SearchScreen(
     existingTracks: List<ExistingTrack> = emptyList(),
     existingVideos: List<String> = emptyList(),
     aiPrefillEnabled: Boolean = true,
-    defaultDownloadType: DefaultDownloadType = DefaultDownloadType.MUSIC,
-    maxVideoQualityHeight: Int = 1080
+    defaultDownloadType: DefaultDownloadType = DefaultDownloadType.MUSIC
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -256,8 +255,7 @@ fun SearchScreen(
                         videoId = result.id,
                         videoTitle = result.title,
                         thumbnailUrl = result.thumbnailUrl,
-                        preferredTitle = title,
-                        maxHeight = maxVideoQualityHeight
+                        preferredTitle = title
                     )
                     val displayTitle = title ?: result.title
                     Toast.makeText(

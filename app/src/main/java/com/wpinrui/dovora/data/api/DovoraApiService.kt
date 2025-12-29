@@ -10,7 +10,7 @@ import com.wpinrui.dovora.data.api.model.MusicTrack
 import com.wpinrui.dovora.data.api.model.Playlist
 import com.wpinrui.dovora.data.api.model.RegisterRequest
 import com.wpinrui.dovora.data.api.model.RefreshRequest
-import com.wpinrui.dovora.data.api.model.SearchResult
+import com.wpinrui.dovora.data.api.model.SearchResponse
 import com.wpinrui.dovora.data.api.model.UpdatePlaylistRequest
 import com.wpinrui.dovora.data.api.model.UpdateTrackRequest
 import com.wpinrui.dovora.data.api.model.Video
@@ -46,7 +46,7 @@ interface DovoraApiService {
     // ==================== Search ====================
 
     @GET("search")
-    suspend fun search(@Query("q") query: String): Response<List<SearchResult>>
+    suspend fun search(@Query("q") query: String): Response<SearchResponse>
 
     // ==================== Music Library ====================
 

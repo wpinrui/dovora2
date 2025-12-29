@@ -9,7 +9,9 @@ import com.wpinrui.dovora.data.api.model.LyricsResponse
 import com.wpinrui.dovora.data.api.model.MusicLibraryResponse
 import com.wpinrui.dovora.data.api.model.MusicTrack
 import com.wpinrui.dovora.data.api.model.Playlist
+import com.wpinrui.dovora.data.api.model.PlaylistsResponse
 import com.wpinrui.dovora.data.api.model.RegisterRequest
+import com.wpinrui.dovora.data.api.model.RegisterResponse
 import com.wpinrui.dovora.data.api.model.RefreshRequest
 import com.wpinrui.dovora.data.api.model.SearchResponse
 import com.wpinrui.dovora.data.api.model.UpdatePlaylistRequest
@@ -39,7 +41,7 @@ interface DovoraApiService {
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
 
     @POST("auth/register")
-    suspend fun register(@Body request: RegisterRequest): Response<AuthResponse>
+    suspend fun register(@Body request: RegisterRequest): Response<RegisterResponse>
 
     @POST("auth/refresh")
     suspend fun refreshToken(@Body request: RefreshRequest): Response<AuthResponse>
@@ -80,7 +82,7 @@ interface DovoraApiService {
     // ==================== Playlists ====================
 
     @GET("playlists")
-    suspend fun getPlaylists(): Response<List<Playlist>>
+    suspend fun getPlaylists(): Response<PlaylistsResponse>
 
     @POST("playlists")
     suspend fun createPlaylist(@Body request: CreatePlaylistRequest): Response<Playlist>

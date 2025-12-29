@@ -66,7 +66,7 @@ class AuthRepository private constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    val tokenStorage = TokenStorage(context)
+    private val tokenStorage = TokenStorage(context)
     private val unauthenticatedApi = RetrofitProvider.createUnauthenticatedDovoraApiService()
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)

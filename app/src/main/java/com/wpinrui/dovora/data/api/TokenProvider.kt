@@ -2,7 +2,7 @@ package com.wpinrui.dovora.data.api
 
 /**
  * Interface for providing and managing authentication tokens.
- * Implementation will use encrypted SharedPreferences (issue #23).
+ * Implementation uses encrypted SharedPreferences (see TokenStorage).
  */
 interface TokenProvider {
     /**

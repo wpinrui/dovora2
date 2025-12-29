@@ -275,7 +275,7 @@ go run cmd/server/main.go
 
 21. [x] Remove Firebase dependencies
 22. [x] API client setup (Retrofit, OkHttp with auth interceptor)
-23. [ ] Token storage (encrypted SharedPreferences)
+23. [x] Token storage (encrypted SharedPreferences)
 24. [ ] Login screen
 25. [ ] Register screen (with invite code)
 26. [ ] Auth state management (logged in/out, token refresh)

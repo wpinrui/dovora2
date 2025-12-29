@@ -6,6 +6,7 @@ import com.wpinrui.dovora.data.api.model.DownloadRequest
 import com.wpinrui.dovora.data.api.model.DownloadResponse
 import com.wpinrui.dovora.data.api.model.LoginRequest
 import com.wpinrui.dovora.data.api.model.LyricsResponse
+import com.wpinrui.dovora.data.api.model.MusicLibraryResponse
 import com.wpinrui.dovora.data.api.model.MusicTrack
 import com.wpinrui.dovora.data.api.model.Playlist
 import com.wpinrui.dovora.data.api.model.RegisterRequest
@@ -13,7 +14,7 @@ import com.wpinrui.dovora.data.api.model.RefreshRequest
 import com.wpinrui.dovora.data.api.model.SearchResponse
 import com.wpinrui.dovora.data.api.model.UpdatePlaylistRequest
 import com.wpinrui.dovora.data.api.model.UpdateTrackRequest
-import com.wpinrui.dovora.data.api.model.Video
+import com.wpinrui.dovora.data.api.model.VideoLibraryResponse
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -51,7 +52,7 @@ interface DovoraApiService {
     // ==================== Music Library ====================
 
     @GET("library/music")
-    suspend fun getMusicLibrary(): Response<List<MusicTrack>>
+    suspend fun getMusicLibrary(): Response<MusicLibraryResponse>
 
     @PATCH("tracks/{id}")
     suspend fun updateTrack(
@@ -65,7 +66,7 @@ interface DovoraApiService {
     // ==================== Video Library ====================
 
     @GET("library/videos")
-    suspend fun getVideoLibrary(): Response<List<Video>>
+    suspend fun getVideoLibrary(): Response<VideoLibraryResponse>
 
     // ==================== Downloads ====================
 

@@ -22,4 +22,3 @@ data class CreatePlaylistRequest(
 data class UpdatePlaylistRequest(
     val name: String
 )
-

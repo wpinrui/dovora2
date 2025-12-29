@@ -121,4 +121,3 @@ object RetrofitProvider {
         return if (this.endsWith("/")) this else "$this/"
     }
 }
-

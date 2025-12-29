@@ -105,6 +105,7 @@ object RetrofitProvider {
             .addInterceptor(createLoggingInterceptor())
             .connectTimeout(BACKEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(BACKEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(BACKEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
 
         val retrofit = Retrofit.Builder()

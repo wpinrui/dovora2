@@ -53,7 +53,7 @@ interface DovoraApiService {
     @GET("library/music")
     suspend fun getMusicLibrary(): Response<List<MusicTrack>>
 
-    @PATCH("library/music/{id}")
+    @PATCH("tracks/{id}")
     suspend fun updateTrack(
         @Path("id") trackId: String,
         @Body request: UpdateTrackRequest

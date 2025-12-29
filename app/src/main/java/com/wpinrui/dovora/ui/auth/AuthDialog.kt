@@ -47,6 +47,17 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
 @Composable
+private fun authTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White,
+    focusedBorderColor = Color(0xFF6200EE),
+    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+    focusedLabelColor = Color(0xFF6200EE),
+    unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+    cursorColor = Color.White
+)
+
+@Composable
 fun SignInDialog(
     onDismiss: () -> Unit,
     onLogin: () -> Unit,
@@ -60,16 +71,7 @@ fun SignInDialog(
 ) {
     val focusManager = LocalFocusManager.current
     var passwordVisible by remember { mutableStateOf(false) }
-
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        focusedBorderColor = Color(0xFF6200EE),
-        unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-        focusedLabelColor = Color(0xFF6200EE),
-        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-        cursorColor = Color.White
-    )
+    val textFieldColors = authTextFieldColors()
 
     AlertDialog(
         onDismissRequest = { if (!isSigningIn) onDismiss() },
@@ -218,16 +220,7 @@ fun RegisterDialog(
     val focusManager = LocalFocusManager.current
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
-
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        focusedBorderColor = Color(0xFF6200EE),
-        unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-        focusedLabelColor = Color(0xFF6200EE),
-        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-        cursorColor = Color.White
-    )
+    val textFieldColors = authTextFieldColors()
 
     val passwordsMatch = password == confirmPassword || confirmPassword.isEmpty()
     val canRegister = !isRegistering &&

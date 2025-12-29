@@ -45,6 +45,7 @@ class AuthViewModel(
         private const val KEY_AI_PREFILL = "ai_prefill_enabled"
         private const val KEY_DEFAULT_DOWNLOAD = "default_download_type"
         private const val KEY_MAX_VIDEO_QUALITY = "max_video_quality"
+        private const val MIN_PASSWORD_LENGTH = 6
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -250,8 +251,8 @@ class AuthViewModel(
             _errorMessage.value = "Please enter a password"
             return
         }
-        if (passwordValue.length < 6) {
-            _errorMessage.value = "Password must be at least 6 characters"
+        if (passwordValue.length < MIN_PASSWORD_LENGTH) {
+            _errorMessage.value = "Password must be at least $MIN_PASSWORD_LENGTH characters"
             return
         }
         if (passwordValue != confirmPasswordValue) {

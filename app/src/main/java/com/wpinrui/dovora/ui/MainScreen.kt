@@ -100,7 +100,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
-import com.wpinrui.dovora.data.api.TokenStorage
+import com.wpinrui.dovora.data.api.AuthRepository
+import com.wpinrui.dovora.data.api.AuthState
 import com.wpinrui.dovora.data.download.DownloadManager
 import com.wpinrui.dovora.data.download.DownloadState
 import com.wpinrui.dovora.data.download.MediaKind
@@ -158,9 +159,9 @@ fun MainScreen() {
     val context = LocalContext.current
     
     // Auth ViewModel for UI (settings, account, etc.)
-    val tokenStorage = remember { TokenStorage(context) }
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, tokenStorage))
-    val currentUser by authViewModel.currentUser.collectAsState()
+    val authRepository = remember { AuthRepository.getInstance(context) }
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, authRepository))
+    val authState by authViewModel.authState.collectAsState()
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
     val showRegisterDialog by authViewModel.showRegisterDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
@@ -177,8 +178,12 @@ fun MainScreen() {
     val defaultDownloadType by authViewModel.defaultDownloadType.collectAsState()
     val maxVideoQuality by authViewModel.maxVideoQuality.collectAsState()
 
-    // TODO: Sync on app launch when implementing issue #25 (auth state management)
-    // This will sync library from backend when user is logged in
+    // Auto-show sign-in dialog when logged out (auth state management)
+    LaunchedEffect(authState) {
+        if (authState is AuthState.LoggedOut) {
+            authViewModel.openSignInDialog()
+        }
+    }
 
     // Now Playing bottom sheet state
     var showNowPlayingSheet by remember { mutableStateOf(false) }
@@ -1432,9 +1437,9 @@ private fun LibraryScreenWithModeSelector(
     onDismissVideoDownload: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val tokenStorage = remember { TokenStorage(context) }
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, tokenStorage))
-    val currentUser by authViewModel.currentUser.collectAsState()
+    val authRepository = remember { AuthRepository.getInstance(context) }
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, authRepository))
+    val authState by authViewModel.authState.collectAsState()
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
     val showRegisterDialog by authViewModel.showRegisterDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
@@ -1538,11 +1543,10 @@ private fun LibraryScreenWithModeSelector(
                     ) {
                         IconButton(
                             onClick = {
-                                val user = currentUser
-                                if (user == null) {
-                                    authViewModel.openSignInDialog()
-                                } else {
+                                if (authState is AuthState.LoggedIn) {
                                     authViewModel.openAccountMenu()
+                                } else {
+                                    authViewModel.openSignInDialog()
                                 }
                             }
                         ) {
@@ -1661,11 +1665,10 @@ private fun LibraryScreenWithModeSelector(
                 ) {
                     IconButton(
                         onClick = {
-                            val user = currentUser
-                            if (user == null) {
-                                authViewModel.openSignInDialog()
-                            } else {
+                            if (authState is AuthState.LoggedIn) {
                                 authViewModel.openAccountMenu()
+                            } else {
+                                authViewModel.openSignInDialog()
                             }
                         }
                     ) {
@@ -1720,12 +1723,14 @@ private fun LibraryScreenWithModeSelector(
         }
 
         // Account Sheet (bottom sheet instead of dialog)
+        val isLoggedIn = authState is AuthState.LoggedIn
+        val userEmail = (authState as? AuthState.LoggedIn)?.email
         AccountSheet(
             isVisible = showAccountMenu,
-            isSignedIn = currentUser != null,
-            userName = if (currentUser != null) authViewModel.getUserDisplayName() else null,
-            userEmail = currentUser?.email,
-            userPhotoUrl = if (currentUser != null) authViewModel.getUserPhotoUrl() else null,
+            isSignedIn = isLoggedIn,
+            userName = if (isLoggedIn) authViewModel.getUserDisplayName() else null,
+            userEmail = userEmail,
+            userPhotoUrl = if (isLoggedIn) authViewModel.getUserPhotoUrl() else null,
             aiPrefillEnabled = aiPrefillEnabled,
             defaultDownloadType = defaultDownloadType,
             maxVideoQuality = maxVideoQuality,

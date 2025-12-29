@@ -9,6 +9,9 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitProvider {
 
+    private const val INVIDIOUS_TIMEOUT_SECONDS = 10L
+    private const val BACKEND_TIMEOUT_SECONDS = 30L
+
     // List of public Invidious instances from https://docs.invidious.io/instances/
     // Only working instance
     private val invidiousInstances = listOf(
@@ -20,10 +23,20 @@ object RetrofitProvider {
 
     fun getInvidiousInstances(): List<String> = invidiousInstances
 
+    private fun createLoggingInterceptor(): HttpLoggingInterceptor {
+        return HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+    }
+
     private fun createOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(INVIDIOUS_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(INVIDIOUS_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
     }
 
@@ -34,14 +47,6 @@ object RetrofitProvider {
         tokenProvider: TokenProvider,
         authEventListener: AuthEventListener? = null
     ): OkHttpClient {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
-        }
-
         val authInterceptor = AuthInterceptor(
             tokenProvider = tokenProvider,
             baseUrl = backendBaseUrl,
@@ -50,10 +55,10 @@ object RetrofitProvider {
 
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
-            .addInterceptor(loggingInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(createLoggingInterceptor())
+            .connectTimeout(BACKEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(BACKEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(BACKEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
     }
 
@@ -96,18 +101,10 @@ object RetrofitProvider {
      * Use this for auth endpoints that don't require a token.
      */
     fun createUnauthenticatedDovoraApiService(): DovoraApiService {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
-        }
-
         val client = OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(createLoggingInterceptor())
+            .connectTimeout(BACKEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(BACKEND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
 
         val retrofit = Retrofit.Builder()

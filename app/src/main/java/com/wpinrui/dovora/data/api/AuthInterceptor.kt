@@ -44,8 +44,6 @@ class AuthInterceptor(
         "auth/refresh"
     )
 
-    @Volatile
-    private var isRefreshing = false
     private val refreshLock = Any()
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -88,34 +86,20 @@ class AuthInterceptor(
         usedToken: String?
     ): Response {
         synchronized(refreshLock) {
-            // Check if another thread already refreshed
+            // Check if another thread already refreshed while we were waiting
             val currentToken = tokenProvider.getAccessToken()
-
             if (currentToken != null && currentToken != usedToken) {
-                // Token was refreshed by another thread, retry with new token
                 return chain.proceed(addAuthHeader(originalRequest))
             }
 
             // Attempt to refresh token
-            if (!isRefreshing) {
-                isRefreshing = true
-                try {
-                    val refreshed = attemptTokenRefresh()
-                    if (refreshed) {
-                        // Retry original request with new token
-                        return chain.proceed(addAuthHeader(originalRequest))
-                    } else {
-                        // Refresh failed, clear tokens and notify
-                        tokenProvider.clearTokens()
-                        authEventListener?.onAuthenticationRequired()
-                        throw AuthenticationException("Session expired. Please log in again.")
-                    }
-                } finally {
-                    isRefreshing = false
-                }
+            val refreshed = attemptTokenRefresh()
+            if (refreshed) {
+                return chain.proceed(addAuthHeader(originalRequest))
             } else {
-                // Another thread is refreshing, wait and retry
-                throw AuthenticationException("Authentication in progress. Please retry.")
+                tokenProvider.clearTokens()
+                authEventListener?.onAuthenticationRequired()
+                throw AuthenticationException("Session expired. Please log in again.")
             }
         }
     }

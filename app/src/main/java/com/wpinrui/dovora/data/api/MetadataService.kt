@@ -23,13 +23,18 @@ data class ParsedMetadata(
      * Returns true if the song title has high enough confidence to auto-fill.
      */
     val shouldAutoFillTitle: Boolean
-        get() = songTitle != null && songTitleConfidence >= 0.7f
+        get() = songTitle != null && songTitleConfidence >= AUTO_FILL_CONFIDENCE_THRESHOLD
 
     /**
      * Returns true if the artist has high enough confidence to auto-fill.
      */
     val shouldAutoFillArtist: Boolean
-        get() = artist != null && artistConfidence >= 0.7f
+        get() = artist != null && artistConfidence >= AUTO_FILL_CONFIDENCE_THRESHOLD
+
+    companion object {
+        /** Minimum confidence (0.0-1.0) required to auto-fill a metadata field */
+        const val AUTO_FILL_CONFIDENCE_THRESHOLD = 0.7f
+    }
 }
 
 /**

@@ -1,11 +1,13 @@
 package com.wpinrui.dovora.ui.auth
 
 import android.content.Context
-import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.wpinrui.dovora.data.api.RetrofitProvider
+import com.wpinrui.dovora.data.api.TokenStorage
+import com.wpinrui.dovora.data.api.model.LoginRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,8 +25,7 @@ enum class MaxVideoQuality(val label: String, val height: Int) {
 }
 
 /**
- * Stub user data class for auth state.
- * TODO: Replace with actual User model when implementing issue #23-25
+ * User data class for auth state.
  */
 data class User(
     val email: String,
@@ -32,7 +33,10 @@ data class User(
     val photoUrl: String? = null
 )
 
-class AuthViewModel(private val context: Context) : ViewModel() {
+class AuthViewModel(
+    private val context: Context,
+    private val tokenStorage: TokenStorage
+) : ViewModel() {
 
     companion object {
         private const val TAG = "AuthViewModel"
@@ -43,9 +47,14 @@ class AuthViewModel(private val context: Context) : ViewModel() {
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val apiService = RetrofitProvider.createUnauthenticatedDovoraApiService()
 
-    // TODO: Replace with backend JWT auth when implementing issues #21-25
-    // Auth is currently stubbed - user is always "not signed in"
+    // Login form state
+    private val _email = MutableStateFlow("")
+    val email: StateFlow<String> = _email.asStateFlow()
+
+    private val _password = MutableStateFlow("")
+    val password: StateFlow<String> = _password.asStateFlow()
 
     // Settings (these work without Firebase)
     private val _aiPrefillEnabled = MutableStateFlow(prefs.getBoolean(KEY_AI_PREFILL, true))
@@ -80,8 +89,7 @@ class AuthViewModel(private val context: Context) : ViewModel() {
         prefs.edit().putString(KEY_MAX_VIDEO_QUALITY, quality.name).apply()
     }
 
-    // Stubbed auth state - always null (not signed in)
-    // TODO: Implement with JWT auth in issues #21-25
+    // Auth state
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
@@ -119,31 +127,73 @@ class AuthViewModel(private val context: Context) : ViewModel() {
         _errorMessage.value = null
     }
 
-    /**
-     * Get the sign-in intent.
-     * TODO: Replace with login screen navigation when implementing issue #23
-     */
-    fun getSignInIntent(): Intent {
-        // Return empty intent - auth is stubbed
-        // This will be replaced with navigation to login screen
-        return Intent()
+    fun updateEmail(email: String) {
+        _email.value = email
+    }
+
+    fun updatePassword(password: String) {
+        _password.value = password
     }
 
     /**
-     * Handle the result from sign-in.
-     * TODO: Implement with backend JWT auth in issue #23
+     * Login with email and password via the Go backend.
      */
-    fun handleSignInResult(data: Intent?) {
+    fun login() {
+        val emailValue = _email.value.trim()
+        val passwordValue = _password.value
+
+        if (emailValue.isBlank()) {
+            _errorMessage.value = "Please enter your email"
+            return
+        }
+        if (passwordValue.isBlank()) {
+            _errorMessage.value = "Please enter your password"
+            return
+        }
+
         viewModelScope.launch {
-            _errorMessage.value = "Authentication not yet implemented. Coming soon!"
-            Log.d(TAG, "Auth stubbed - will be implemented with backend JWT")
+            _isSigningIn.value = true
+            _errorMessage.value = null
+
+            try {
+                val response = apiService.login(LoginRequest(emailValue, passwordValue))
+
+                if (response.isSuccessful) {
+                    val authResponse = response.body()
+                    if (authResponse != null) {
+                        tokenStorage.saveTokens(authResponse.accessToken, authResponse.refreshToken)
+                        _currentUser.value = User(email = emailValue)
+                        _showSignInDialog.value = false
+                        _email.value = ""
+                        _password.value = ""
+                        Log.d(TAG, "Login successful for $emailValue")
+                    } else {
+                        _errorMessage.value = "Invalid response from server"
+                    }
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    _errorMessage.value = when (response.code()) {
+                        401 -> "Invalid email or password"
+                        404 -> "User not found"
+                        else -> errorBody ?: "Login failed"
+                    }
+                    Log.w(TAG, "Login failed: ${response.code()} - $errorBody")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Login error", e)
+                _errorMessage.value = "Network error. Please check your connection."
+            } finally {
+                _isSigningIn.value = false
+            }
         }
     }
 
     fun signOut() {
         viewModelScope.launch {
+            tokenStorage.clearTokens()
             _currentUser.value = null
             _showAccountMenu.value = false
+            Log.d(TAG, "User signed out")
         }
     }
 
@@ -163,10 +213,13 @@ class AuthViewModel(private val context: Context) : ViewModel() {
         return _currentUser.value?.photoUrl
     }
 
-    class Factory(private val context: Context) : ViewModelProvider.Factory {
+    class Factory(
+        private val context: Context,
+        private val tokenStorage: TokenStorage
+    ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
-            return AuthViewModel(context) as T
+            return AuthViewModel(context, tokenStorage) as T
         }
     }
 }

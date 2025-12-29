@@ -21,6 +21,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.util.Log
+import com.wpinrui.dovora.data.api.TokenStorage
 import com.wpinrui.dovora.data.download.DownloadManager
 import com.wpinrui.dovora.data.download.DownloadState
 import com.wpinrui.dovora.ui.auth.AccountSheet
@@ -41,32 +42,28 @@ fun MusicLibraryScreen(
     externalSearchQuery: String = ""
 ) {
     val context = LocalContext.current
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context))
+    val tokenStorage = remember { TokenStorage(context) }
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, tokenStorage))
     val uiState by viewModel.uiState.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
     var trackToRename by remember { mutableStateOf<MusicTrack?>(null) }
     var trackToEditArtist by remember { mutableStateOf<MusicTrack?>(null) }
     var trackToDelete by remember { mutableStateOf<MusicTrack?>(null) }
     var trackForArtwork by remember { mutableStateOf<MusicTrack?>(null) }
-    
+
     val downloadManager = remember { DownloadManager.getInstance(context) }
     val activeDownloads by downloadManager.activeDownloads.collectAsState()
     val recentlyCompletedTitles by downloadManager.recentlyCompletedTitles.collectAsState()
-    
+
     // Auth state
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
     val isSigningIn by authViewModel.isSigningIn.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
-    
-    // Google Sign-In launcher
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        authViewModel.handleSignInResult(result.data)
-    }
-    
+    val email by authViewModel.email.collectAsState()
+    val password by authViewModel.password.collectAsState()
+
     // Track completed downloads count to trigger refresh
     val completedCount = activeDownloads.values.count { it.state is DownloadState.Completed }
     
@@ -147,9 +144,11 @@ fun MusicLibraryScreen(
     if (showSignInDialog) {
         SignInDialog(
             onDismiss = { authViewModel.closeSignInDialog() },
-            onSignInClick = {
-                googleSignInLauncher.launch(authViewModel.getSignInIntent())
-            },
+            onLogin = { authViewModel.login() },
+            email = email,
+            onEmailChange = { authViewModel.updateEmail(it) },
+            password = password,
+            onPasswordChange = { authViewModel.updatePassword(it) },
             isSigningIn = isSigningIn,
             errorMessage = errorMessage
         )
@@ -168,10 +167,10 @@ fun MusicLibraryScreen(
         onAiPrefillChange = { authViewModel.setAiPrefillEnabled(it) },
         onDefaultDownloadChange = { authViewModel.setDefaultDownloadType(it) },
         onMaxQualityChange = { authViewModel.setMaxVideoQuality(it) },
-        onSignIn = { googleSignInLauncher.launch(authViewModel.getSignInIntent()) },
-            onSignOut = { authViewModel.signOut() },
-            onDismiss = { authViewModel.closeAccountMenu() }
-        )
+        onSignIn = { authViewModel.openSignInDialog() },
+        onSignOut = { authViewModel.signOut() },
+        onDismiss = { authViewModel.closeAccountMenu() }
+    )
 
     trackToRename?.let { track ->
         var newTitle by remember(track) { mutableStateOf(track.title) }

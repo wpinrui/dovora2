@@ -100,6 +100,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.wpinrui.dovora.data.api.TokenStorage
 import com.wpinrui.dovora.data.download.DownloadManager
 import com.wpinrui.dovora.data.download.DownloadState
 import com.wpinrui.dovora.data.download.MediaKind
@@ -156,18 +157,21 @@ fun MainScreen() {
     val context = LocalContext.current
     
     // Auth ViewModel for UI (settings, account, etc.)
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context))
+    val tokenStorage = remember { TokenStorage(context) }
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, tokenStorage))
     val currentUser by authViewModel.currentUser.collectAsState()
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
     val isSigningIn by authViewModel.isSigningIn.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
-    
+    val email by authViewModel.email.collectAsState()
+    val password by authViewModel.password.collectAsState()
+
     // Settings state
     val aiPrefillEnabled by authViewModel.aiPrefillEnabled.collectAsState()
     val defaultDownloadType by authViewModel.defaultDownloadType.collectAsState()
     val maxVideoQuality by authViewModel.maxVideoQuality.collectAsState()
-    
+
     // TODO: Sync on app launch when implementing issue #25 (auth state management)
     // This will sync library from backend when user is logged in
 
@@ -228,13 +232,6 @@ fun MainScreen() {
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* no-op */ }
-    
-    // Google Sign-In launcher
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        authViewModel.handleSignInResult(result.data)
-    }
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1430,25 +1427,21 @@ private fun LibraryScreenWithModeSelector(
     onDismissVideoDownload: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context))
+    val tokenStorage = remember { TokenStorage(context) }
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, tokenStorage))
     val currentUser by authViewModel.currentUser.collectAsState()
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
     val isSigningIn by authViewModel.isSigningIn.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
-    
+    val email by authViewModel.email.collectAsState()
+    val password by authViewModel.password.collectAsState()
+
     // Settings state
     val aiPrefillEnabled by authViewModel.aiPrefillEnabled.collectAsState()
     val defaultDownloadType by authViewModel.defaultDownloadType.collectAsState()
     val maxVideoQuality by authViewModel.maxVideoQuality.collectAsState()
-    
-    // Google Sign-In launcher
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        authViewModel.handleSignInResult(result.data)
-    }
-    
+
     var showModeDropdown by remember { mutableStateOf(false) }
     var isSearching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -1688,9 +1681,11 @@ private fun LibraryScreenWithModeSelector(
         if (showSignInDialog) {
             SignInDialog(
                 onDismiss = { authViewModel.closeSignInDialog() },
-                onSignInClick = {
-                    googleSignInLauncher.launch(authViewModel.getSignInIntent())
-                },
+                onLogin = { authViewModel.login() },
+                email = email,
+                onEmailChange = { authViewModel.updateEmail(it) },
+                password = password,
+                onPasswordChange = { authViewModel.updatePassword(it) },
                 isSigningIn = isSigningIn,
                 errorMessage = errorMessage
             )
@@ -1709,7 +1704,7 @@ private fun LibraryScreenWithModeSelector(
             onAiPrefillChange = { authViewModel.setAiPrefillEnabled(it) },
             onDefaultDownloadChange = { authViewModel.setDefaultDownloadType(it) },
             onMaxQualityChange = { authViewModel.setMaxVideoQuality(it) },
-            onSignIn = { googleSignInLauncher.launch(authViewModel.getSignInIntent()) },
+            onSignIn = { authViewModel.openSignInDialog() },
             onSignOut = { authViewModel.signOut() },
             onDismiss = { authViewModel.closeAccountMenu() }
         )

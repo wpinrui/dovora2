@@ -56,14 +56,15 @@ class AuthInterceptor(
             return chain.proceed(originalRequest)
         }
 
-        // Add auth header
-        val authenticatedRequest = addAuthHeader(originalRequest)
+        // Get current token and add auth header
+        val usedToken = tokenProvider.getAccessToken()
+        val authenticatedRequest = addAuthHeader(originalRequest, usedToken)
         val response = chain.proceed(authenticatedRequest)
 
         // Handle 401 Unauthorized
         if (response.code == 401) {
             response.close()
-            return handleUnauthorized(chain, originalRequest)
+            return handleUnauthorized(chain, originalRequest, usedToken)
         }
 
         return response
@@ -74,20 +75,23 @@ class AuthInterceptor(
         return publicEndpoints.any { path.startsWith(it) }
     }
 
-    private fun addAuthHeader(request: Request): Request {
-        val token = tokenProvider.getAccessToken() ?: return request
+    private fun addAuthHeader(request: Request, token: String? = null): Request {
+        val accessToken = token ?: tokenProvider.getAccessToken() ?: return request
         return request.newBuilder()
-            .header("Authorization", "Bearer $token")
+            .header("Authorization", "Bearer $accessToken")
             .build()
     }
 
-    private fun handleUnauthorized(chain: Interceptor.Chain, originalRequest: Request): Response {
+    private fun handleUnauthorized(
+        chain: Interceptor.Chain,
+        originalRequest: Request,
+        usedToken: String?
+    ): Response {
         synchronized(refreshLock) {
             // Check if another thread already refreshed
             val currentToken = tokenProvider.getAccessToken()
-            val originalToken = originalRequest.header("Authorization")?.removePrefix("Bearer ")
 
-            if (currentToken != null && currentToken != originalToken) {
+            if (currentToken != null && currentToken != usedToken) {
                 // Token was refreshed by another thread, retry with new token
                 return chain.proceed(addAuthHeader(originalRequest))
             }

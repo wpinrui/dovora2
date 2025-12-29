@@ -146,17 +146,20 @@ fun MainScreen() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val context = LocalContext.current
     val playbackViewModel: MusicPlaybackViewModel = viewModel()
     val appViewModel: AppViewModel = viewModel()
     // Create SearchViewModel at activity level so it persists across navigation and app lifecycle
-    val searchViewModel: com.wpinrui.dovora.ui.search.SearchViewModel = viewModel(key = "search_viewmodel")
+    val searchViewModel: com.wpinrui.dovora.ui.search.SearchViewModel = viewModel(
+        key = "search_viewmodel",
+        factory = com.wpinrui.dovora.ui.search.SearchViewModel.Factory(context)
+    )
     val playbackUiState by playbackViewModel.uiState.collectAsState()
     val playerPage by playbackViewModel.playerPage.collectAsState()
     val dominantColor by playbackViewModel.dominantColor.collectAsState()
     val appMode by appViewModel.appMode.collectAsState()
     val videoLibrary by appViewModel.videoLibrary.collectAsState()
     val currentVideo by appViewModel.currentVideo.collectAsState()
-    val context = LocalContext.current
     
     // Auth ViewModel for UI (settings, account, etc.)
     val authRepository = remember { AuthRepository.getInstance(context) }

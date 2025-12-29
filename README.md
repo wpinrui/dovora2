@@ -282,7 +282,7 @@ go run cmd/server/main.go
 
 ### Android Phase 2: Music
 
-27. [ ] Search screen (Invidious integration)
+27. [x] Search screen (Invidious integration)
 28. [ ] Download flow (request to backend, progress tracking)
 29. [ ] Music library screen (list tracks from backend)
 30. [ ] Track detail/edit screen (rename title/artist)

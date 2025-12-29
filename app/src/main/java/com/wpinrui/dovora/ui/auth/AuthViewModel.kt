@@ -5,10 +5,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.wpinrui.dovora.data.api.RetrofitProvider
-import com.wpinrui.dovora.data.api.TokenStorage
-import com.wpinrui.dovora.data.api.model.LoginRequest
-import com.wpinrui.dovora.data.api.model.RegisterRequest
+import com.wpinrui.dovora.data.api.AuthRepository
+import com.wpinrui.dovora.data.api.AuthResult
+import com.wpinrui.dovora.data.api.AuthState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,18 +24,9 @@ enum class MaxVideoQuality(val label: String, val height: Int) {
     Q_240P("240p", 240)
 }
 
-/**
- * User data class for auth state.
- */
-data class User(
-    val email: String,
-    val displayName: String? = null,
-    val photoUrl: String? = null
-)
-
 class AuthViewModel(
     private val context: Context,
-    private val tokenStorage: TokenStorage
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     companion object {
@@ -49,7 +39,9 @@ class AuthViewModel(
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    private val apiService = RetrofitProvider.createUnauthenticatedDovoraApiService()
+
+    // Auth state from repository - exposes Loading, LoggedIn, LoggedOut
+    val authState: StateFlow<AuthState> = authRepository.authState
 
     // Login form state
     private val _email = MutableStateFlow("")
@@ -98,10 +90,7 @@ class AuthViewModel(
         prefs.edit().putString(KEY_MAX_VIDEO_QUALITY, quality.name).apply()
     }
 
-    // Auth state
-    private val _currentUser = MutableStateFlow<User?>(null)
-    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
-
+    // UI state for dialogs
     private val _isSigningIn = MutableStateFlow(false)
     val isSigningIn: StateFlow<Boolean> = _isSigningIn.asStateFlow()
 
@@ -200,36 +189,20 @@ class AuthViewModel(
             _isSigningIn.value = true
             _errorMessage.value = null
 
-            try {
-                val response = apiService.login(LoginRequest(emailValue, passwordValue))
-
-                if (response.isSuccessful) {
-                    val authResponse = response.body()
-                    if (authResponse != null) {
-                        tokenStorage.saveTokens(authResponse.accessToken, authResponse.refreshToken)
-                        _currentUser.value = User(email = emailValue)
-                        _showSignInDialog.value = false
-                        _email.value = ""
-                        _password.value = ""
-                        Log.d(TAG, "Login successful for $emailValue")
-                    } else {
-                        _errorMessage.value = "Invalid response from server"
-                    }
-                } else {
-                    val errorBody = response.errorBody()?.string()
-                    _errorMessage.value = when (response.code()) {
-                        401 -> "Invalid email or password"
-                        404 -> "User not found"
-                        else -> errorBody ?: "Login failed"
-                    }
-                    Log.w(TAG, "Login failed: ${response.code()} - $errorBody")
+            when (val result = authRepository.login(emailValue, passwordValue)) {
+                is AuthResult.Success -> {
+                    _showSignInDialog.value = false
+                    _email.value = ""
+                    _password.value = ""
+                    Log.d(TAG, "Login successful for $emailValue")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Login error", e)
-                _errorMessage.value = "Network error. Please check your connection."
-            } finally {
-                _isSigningIn.value = false
+                is AuthResult.Error -> {
+                    _errorMessage.value = result.message
+                    Log.w(TAG, "Login failed: ${result.message}")
+                }
             }
+
+            _isSigningIn.value = false
         }
     }
 
@@ -268,88 +241,58 @@ class AuthViewModel(
             _isRegistering.value = true
             _errorMessage.value = null
 
-            try {
-                val response = apiService.register(
-                    RegisterRequest(emailValue, passwordValue, inviteCodeValue)
-                )
-
-                if (response.isSuccessful) {
-                    Log.d(TAG, "Registration successful for $emailValue, auto-logging in...")
-
-                    // Auto-login after successful registration
-                    val loginResponse = apiService.login(LoginRequest(emailValue, passwordValue))
-                    if (loginResponse.isSuccessful) {
-                        val authResponse = loginResponse.body()
-                        if (authResponse != null) {
-                            tokenStorage.saveTokens(authResponse.accessToken, authResponse.refreshToken)
-                            _currentUser.value = User(email = emailValue)
-                            _showRegisterDialog.value = false
-                            _email.value = ""
-                            _password.value = ""
-                            _confirmPassword.value = ""
-                            _inviteCode.value = ""
-                            Log.d(TAG, "Auto-login successful for $emailValue")
-                        } else {
-                            _errorMessage.value = "Registration successful. Please sign in."
-                            _showRegisterDialog.value = false
-                            _showSignInDialog.value = true
-                        }
-                    } else {
-                        _errorMessage.value = "Registration successful. Please sign in."
-                        _showRegisterDialog.value = false
-                        _showSignInDialog.value = true
-                    }
-                } else {
-                    val errorBody = response.errorBody()?.string()
-                    _errorMessage.value = when (response.code()) {
-                        400 -> errorBody ?: "Invalid registration data"
-                        409 -> "Email already registered"
-                        403 -> "Invalid invite code"
-                        else -> errorBody ?: "Registration failed"
-                    }
-                    Log.w(TAG, "Registration failed: ${response.code()} - $errorBody")
+            when (val result = authRepository.register(emailValue, passwordValue, inviteCodeValue)) {
+                is AuthResult.Success -> {
+                    _showRegisterDialog.value = false
+                    _email.value = ""
+                    _password.value = ""
+                    _confirmPassword.value = ""
+                    _inviteCode.value = ""
+                    Log.d(TAG, "Registration and auto-login successful for $emailValue")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Registration error", e)
-                _errorMessage.value = "Network error. Please check your connection."
-            } finally {
-                _isRegistering.value = false
+                is AuthResult.Error -> {
+                    _errorMessage.value = result.message
+                    Log.w(TAG, "Registration failed: ${result.message}")
+                }
             }
+
+            _isRegistering.value = false
         }
     }
 
     fun signOut() {
-        viewModelScope.launch {
-            tokenStorage.clearTokens()
-            _currentUser.value = null
-            _showAccountMenu.value = false
-            Log.d(TAG, "User signed out")
-        }
+        authRepository.signOut()
+        _showAccountMenu.value = false
+        Log.d(TAG, "User signed out")
     }
 
     /**
      * Get user's display name or email
      */
     fun getUserDisplayName(): String {
-        return _currentUser.value?.displayName
-            ?: _currentUser.value?.email
-            ?: "User"
+        return when (val state = authState.value) {
+            is AuthState.LoggedIn -> state.email
+            else -> "User"
+        }
     }
 
     /**
-     * Get user's photo URL
+     * Get user's photo URL (not implemented)
      */
-    fun getUserPhotoUrl(): String? {
-        return _currentUser.value?.photoUrl
-    }
+    fun getUserPhotoUrl(): String? = null
+
+    /**
+     * Check if user is logged in
+     */
+    fun isLoggedIn(): Boolean = authState.value is AuthState.LoggedIn
 
     class Factory(
         private val context: Context,
-        private val tokenStorage: TokenStorage
+        private val authRepository: AuthRepository
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
-            return AuthViewModel(context, tokenStorage) as T
+            return AuthViewModel(context, authRepository) as T
         }
     }
 }

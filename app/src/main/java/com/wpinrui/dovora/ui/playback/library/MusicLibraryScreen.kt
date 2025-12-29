@@ -21,7 +21,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.util.Log
-import com.wpinrui.dovora.data.api.TokenStorage
+import com.wpinrui.dovora.data.api.AuthRepository
+import com.wpinrui.dovora.data.api.AuthState
 import com.wpinrui.dovora.data.download.DownloadManager
 import com.wpinrui.dovora.data.download.DownloadState
 import com.wpinrui.dovora.ui.auth.AccountSheet
@@ -43,8 +44,8 @@ fun MusicLibraryScreen(
     externalSearchQuery: String = ""
 ) {
     val context = LocalContext.current
-    val tokenStorage = remember { TokenStorage(context) }
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, tokenStorage))
+    val authRepository = remember { AuthRepository.getInstance(context) }
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context, authRepository))
     val uiState by viewModel.uiState.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
     var trackToRename by remember { mutableStateOf<MusicTrack?>(null) }
@@ -57,13 +58,13 @@ fun MusicLibraryScreen(
     val recentlyCompletedTitles by downloadManager.recentlyCompletedTitles.collectAsState()
 
     // Auth state
+    val authState by authViewModel.authState.collectAsState()
     val showSignInDialog by authViewModel.showSignInDialog.collectAsState()
     val showRegisterDialog by authViewModel.showRegisterDialog.collectAsState()
     val showAccountMenu by authViewModel.showAccountMenu.collectAsState()
     val isSigningIn by authViewModel.isSigningIn.collectAsState()
     val isRegistering by authViewModel.isRegistering.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
-    val currentUser by authViewModel.currentUser.collectAsState()
     val email by authViewModel.email.collectAsState()
     val password by authViewModel.password.collectAsState()
     val confirmPassword by authViewModel.confirmPassword.collectAsState()
@@ -107,6 +108,7 @@ fun MusicLibraryScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    val isLoggedIn = authState is AuthState.LoggedIn
     MusicLibraryList(
         tracks = uiState.library,
         activeDownloads = activeDownloads,
@@ -114,7 +116,7 @@ fun MusicLibraryScreen(
         onDismissDownload = { downloadManager.removeDownload(it) },
         onRetryDownload = { downloadManager.retryDownload(it) },
         onMarkTitleSeen = { downloadManager.markTitleAsSeen(it) },
-        userPhotoUrl = if (currentUser != null) authViewModel.getUserPhotoUrl() else null,
+        userPhotoUrl = if (isLoggedIn) authViewModel.getUserPhotoUrl() else null,
         onSelect = { track ->
             viewModel.selectTrack(track)
             viewModel.setPlayerPage(PlayerPage.NowPlaying)
@@ -130,10 +132,10 @@ fun MusicLibraryScreen(
         onDelete = { trackToDelete = it },
         onSearchOnline = onNavigateToSearch,
         onAccountClick = {
-            if (currentUser == null) {
-                authViewModel.openSignInDialog()
-            } else {
+            if (isLoggedIn) {
                 authViewModel.openAccountMenu()
+            } else {
+                authViewModel.openSignInDialog()
             }
         },
         showHeader = showHeader,
@@ -179,12 +181,13 @@ fun MusicLibraryScreen(
     }
 
     // Account Sheet
+    val userEmail = (authState as? AuthState.LoggedIn)?.email
     AccountSheet(
         isVisible = showAccountMenu,
-        isSignedIn = currentUser != null,
-        userName = if (currentUser != null) authViewModel.getUserDisplayName() else null,
-        userEmail = currentUser?.email,
-        userPhotoUrl = if (currentUser != null) authViewModel.getUserPhotoUrl() else null,
+        isSignedIn = isLoggedIn,
+        userName = if (isLoggedIn) authViewModel.getUserDisplayName() else null,
+        userEmail = userEmail,
+        userPhotoUrl = if (isLoggedIn) authViewModel.getUserPhotoUrl() else null,
         aiPrefillEnabled = aiPrefillEnabled,
         defaultDownloadType = defaultDownloadType,
         maxVideoQuality = maxVideoQuality,

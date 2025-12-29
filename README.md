@@ -278,7 +278,7 @@ go run cmd/server/main.go
 23. [x] Token storage (encrypted SharedPreferences)
 24. [x] Login screen
 25. [x] Register screen (with invite code)
-26. [ ] Auth state management (logged in/out, token refresh)
+26. [x] Auth state management (logged in/out, token refresh)
 
 ### Android Phase 2: Music
 
